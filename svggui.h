@@ -78,6 +78,11 @@ public:
   void setLayoutBounds(const Rect& dest);
   std::function<Rect()> onPrepareLayout;
   std::function<bool(const Rect&, const Rect&)> onApplyLayout;
+  // Normally, a widget with box-anchor fill reports no size of its own to layout, so it contributes
+  //  nothing to the natural size of its container.  For a widget which measures its own contents
+  //  (i.e. sets onPrepareLayout), that means the container can end up smaller than the widget's contents.
+  //  Set this flag to report the measured size to layout while still stretching to fill.
+  bool fillReportsSize = false;
 
 //private:
   //Dim maxWidth = 0;  // only for abs pos nodes and/or flex wrap containers

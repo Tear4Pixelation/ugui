@@ -279,6 +279,7 @@ Button* createMenuItem(const char* title, const SvgNode* icon)
     Widget* iconExt = cloned->selectFirst(".icon");
     iconExt->setVisible(true);
     static_cast<SvgUse*>(iconExt->node)->setTarget(icon);
+    cloned->node->addClass("has-icon");  // icon slot is collapsed by default (see .has-icon in theme CSS)
   }
   return cloned;
 }
@@ -289,6 +290,7 @@ Button* createCheckBoxMenuItem(const char* title, const char* cbnode)
   item->selectFirst(".title")->setText(title);
   // insert the checkbox after the <use> node, which will remain invisible
   item->selectFirst(".menu-icon-container")->addWidget(new Widget(widgetNode(cbnode)));
+  item->node->addClass("has-icon");  // the checkbox occupies the icon slot
   item->node->addClass("cbmenuitem");
   return item;
 }
@@ -336,61 +338,85 @@ Menu::Menu(SvgNode* n, int align) : AbsPosWidget(n)
   setVisible(false);  // not visible initially
 }
 
-Point Menu::calcOffset(const Rect& pb) const
+// shared by Menu and ArrowPopup; b is the widget's bounds (passed in because ArrowPopup computes them from
+//  its content instead of the node, whose background is regenerated on every layout); if arrowSide/arrowPos
+//  are non-NULL, they receive the edge of the popup facing the anchor and the position of the arrow tip
+//  along that edge (in the popup's own coordinates)
+static Point calcAlignedOffset(const Rect& b, const Widget* widget, const Rect& pb, int align,
+    int* arrowSide, real* arrowPos)
 {
-  int align = mAlign;
-  if(!align) return AbsPosWidget::calcOffset(pb);
-
   Point dr(0,0);
-  Rect b = node->bounds();
-  Rect winb = window()->gui()->getScreenRect();
+  Rect winb = widget->window()->gui()->getScreenRect();
 
-  if(!(align & (LEFT | RIGHT)))
-    align |= (pb.left < window()->winBounds().width() - pb.right) ? RIGHT : LEFT;
+  if(!(align & (Menu::LEFT | Menu::RIGHT)))
+    align |= (pb.left < widget->window()->winBounds().width() - pb.right) ? Menu::RIGHT : Menu::LEFT;
 
-  bool vert = align & VERT;
+  bool vert = align & Menu::VERT;
   bool fitabove = (vert ? pb.top : pb.bottom) - b.height() > 0;
   bool fitbelow = (vert ? pb.bottom : pb.top) + b.height() < winb.bottom;
   if(!fitabove && !fitbelow) vert = false;  // e.g. on mobile landscape orientation
   bool fitleft = (vert ? pb.right : pb.left) - b.width() > 0;
   bool fitright = (vert ? pb.left : pb.right) + b.width() < winb.right;
 
-  if((align & RIGHT) && (align & LEFT))
+  bool toright = (align & Menu::RIGHT && fitright) || !fitleft;
+  if((align & Menu::RIGHT) && (align & Menu::LEFT))
     dr.x = pb.center().x - b.width()/2;
-  else if((align & RIGHT && fitright) || !fitleft)
+  else if(toright)
     dr.x = (vert ? pb.left : pb.right) - b.left;
   else
     dr.x = (vert ? pb.right : pb.left) - b.right;
 
-  if((align & ABOVE && fitabove) || !fitbelow)
+  bool above = (align & Menu::ABOVE && fitabove) || !fitbelow;
+  if(above)
     dr.y = (vert ? pb.top : pb.bottom) - b.bottom;
   else
     dr.y = (vert ? pb.bottom : pb.top) - b.top;
 
+  if(arrowSide && arrowPos) {
+    if(vert) {
+      *arrowSide = above ? ArrowPopup::ARROW_BOTTOM : ArrowPopup::ARROW_TOP;
+      *arrowPos = pb.center().x - dr.x;
+    }
+    else {
+      *arrowSide = toright ? ArrowPopup::ARROW_LEFT : ArrowPopup::ARROW_RIGHT;
+      *arrowPos = pb.center().y - dr.y;
+    }
+  }
   return dr;
 }
 
-// (option for) menu alignment to be determined automatically based on orientation of parent container?
-void Menu::setAlign(int align)
+Point Menu::calcOffset(const Rect& pb) const
 {
-  mAlign = align;
+  if(!mAlign) return AbsPosWidget::calcOffset(pb);
+  return calcAlignedOffset(node->bounds(), this, pb, mAlign, NULL, NULL);
+}
+
+// (option for) menu alignment to be determined automatically based on orientation of parent container?
+static void setAlignAttrs(SvgNode* node, int align)
+{
   node->removeAttr("left");
   node->removeAttr("right");
   node->removeAttr("top");
   node->removeAttr("bottom");
-  if(align & VERT && align & RIGHT)
+  if(align & Menu::VERT && align & Menu::RIGHT)
     node->setAttribute("left", "0");  //offsetLeft = SvgLength(0); ... would be overwritten by updateLayoutVars()
-  else if(align & VERT && align & LEFT)
+  else if(align & Menu::VERT && align & Menu::LEFT)
     node->setAttribute("right", "0");  //offsetRight = SvgLength(0);
-  else if(align & HORZ && align & RIGHT)
+  else if(align & Menu::HORZ && align & Menu::RIGHT)
     node->setAttribute("left", "100%");  //offsetLeft = SvgLength(100, SvgLength::PERCENT);
-  else if(align & HORZ && align & LEFT)
+  else if(align & Menu::HORZ && align & Menu::LEFT)
     node->setAttribute("right", "100%");  //offsetRight = SvgLength(100, SvgLength::PERCENT);
 
-  if(align & VERT)
-    node->setAttribute(align & ABOVE ? "bottom" : "top", "100%");  //offsetTop = SvgLength(100, SvgLength::PERCENT);
-  else if(align & HORZ) // HORZ_*
+  if(align & Menu::VERT)
+    node->setAttribute(align & Menu::ABOVE ? "bottom" : "top", "100%");  //offsetTop = SvgLength(100, SvgLength::PERCENT);
+  else if(align & Menu::HORZ) // HORZ_*
     node->setAttribute("top", "0");  //offsetTop = SvgLength(0);
+}
+
+void Menu::setAlign(int align)
+{
+  mAlign = align;
+  setAlignAttrs(node, align);
 }
 
 Button* Menu::addSubmenu(const char* title, Menu* submenu)
@@ -427,6 +453,282 @@ Menu* createMenu(int align, bool showicons)
   if(!showicons)
     menu->node->addClass("no-icon-menu");
   return menu;
+}
+
+// geometry of new popup chrome is derived from the standard toolbutton icon size so that a global change
+//  to toolbar/icon sizing carries over without touching this code
+static real toolIconSize()
+{
+  // select() only supports simple selectors, so do the descendant lookup in two scoped steps
+  SvgNode* toolbutton = widgetDoc ? widgetDoc->selectFirst("#toolbutton") : NULL;
+  SvgNode* icon = toolbutton ? toolbutton->selectFirst(".icon") : NULL;
+  return icon ? icon->getFloatAttr("width", 24) : 24;
+}
+
+ArrowPopup::ArrowPopup(SvgNode* n, int align) : AbsPosWidget(n)
+{
+  real unit = toolIconSize();
+  cornerRadius = 0.5*unit;
+  arrowSize = 0.35*unit;
+  Widget* bgWidget = selectFirst(".arrowpopup-bg");
+  bgNode = bgWidget->node;
+  // the background path is generated by updateBackground() in the popup's own coordinates; suppress the
+  //  default layout handling, which would otherwise scale/translate the path to fit the box (and leave a
+  //  stale layout transform on it that corrupts the freshly generated path)
+  bgWidget->onApplyLayout = [](const Rect&, const Rect&){ return true; };
+  contentWidget = selectFirst(".child-container");
+  // popup content padding, uniform on all four sides and matching the inset menu items use inside a
+  //  Menu (see the .arrowpopup rules in theme.cpp, which drop that per-item inset so the two agree);
+  //  the arrow side gets arrowSize added outside this padding in calcOffset()
+  contentWidget->setMargins(8);
+
+  setAlign(align);
+  addHandler([this](SvgGui* gui, SDL_Event* event){
+    if(event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_ESCAPE) {
+      // a popup opened as a menu (see setupAutoClosePopup) must be closed through the menu stack, or the
+      //  stale stack entry would keep swallowing events; a pressed popup is simply hidden
+      if(std::find(gui->menuStack.begin(), gui->menuStack.end(), this) != gui->menuStack.end())
+        gui->closeMenus(parent());  // also closes any submenu popups we opened
+      else
+        setVisible(false);
+      return true;
+    }
+    return false;
+  });
+  setVisible(false);
+}
+
+void ArrowPopup::setAlign(int align)
+{
+  mAlign = align;
+  setAlignAttrs(node, align);
+}
+
+Point ArrowPopup::calcOffset(const Rect& pb) const
+{
+  if(!mAlign) return AbsPosWidget::calcOffset(pb);
+  // the popup is exactly its content plus the content padding; we can't use node->bounds() for this, since
+  //  that includes the background path left over from the previous layout (the new one is generated below)
+  Rect content = contentWidget->node->bounds();
+  Rect outer = node->bounds();
+  if(content.isValid()) {
+    const Rect& m = contentWidget->margins();
+    outer = Rect::ltrb(content.left - m.left, content.top - m.top,
+        content.right + m.right, content.bottom + m.bottom);
+  }
+  int side = ARROW_TOP;
+  real arrowPos = 0;
+  // the arrow is drawn inside `outer`, so the edge it sits on needs arrowSize of extra space to keep the
+  //  content padding uniform; which edge that is only comes out of the alignment calc, so run it twice
+  Point dr = calcAlignedOffset(outer, this, pb, mAlign, &side, &arrowPos);
+  Rect padded = outer;
+  switch(side) {
+    case ARROW_TOP:  padded.top -= arrowSize;  break;
+    case ARROW_BOTTOM:  padded.bottom += arrowSize;  break;
+    case ARROW_LEFT:  padded.left -= arrowSize;  break;
+    default:  padded.right += arrowSize;  break;
+  }
+  dr = calcAlignedOffset(padded, this, pb, mAlign, &side, &arrowPos);
+  updateBackground(padded, side, arrowPos);
+  return dr;
+}
+
+// bounds() are in window coordinates, but a node's own geometry lives in the coordinate space set up by its
+//  ancestors' transforms - for a popup nested inside another popup, that includes the parent popup's layout
+//  offset, which has to be cancelled out of the generated background path
+static Transform2D ancestorTransform(const SvgNode* node)
+{
+  Transform2D tf;
+  for(const SvgNode* parent = node->parent(); parent; parent = parent->parent()) {
+    Transform2D parentTf;
+    if(parent->hasExt())
+      parentTf = static_cast<const Widget*>(parent->ext())->layoutTransform();
+    if(parent->hasTransform())
+      parentTf = parentTf * parent->getTransform();
+    tf = parentTf * tf;
+  }
+  return tf;
+}
+
+// canonical shape is drawn with the arrow on the top edge, then mapped onto the requested edge
+void ArrowPopup::updateBackground(const Rect& outer, int side, real arrowPos) const
+{
+  if(!outer.isValid() || (side == bgSide && outer == bgRect && arrowPos == bgPos))
+    return;
+  bgRect = outer;
+  bgSide = side;
+  bgPos = arrowPos;
+
+  bool horzEdge = side == ARROW_TOP || side == ARROW_BOTTOM;
+  Rect body = outer;
+  switch(side) {
+    case ARROW_TOP:  body.top += arrowSize;  break;
+    case ARROW_BOTTOM:  body.bottom -= arrowSize;  break;
+    case ARROW_LEFT:  body.left += arrowSize;  break;
+    default:  body.right -= arrowSize;  break;
+  }
+  real edgeLen = horzEdge ? body.width() : body.height();
+  real crossLen = horzEdge ? body.height() : body.width();
+  // rounded corners take priority over the arrow
+  bool hasArrow = edgeLen >= 2*cornerRadius + 2*arrowSize;
+  if(!hasArrow) {
+    body = outer;
+    edgeLen = horzEdge ? body.width() : body.height();
+    crossLen = horzEdge ? body.height() : body.width();
+  }
+  real radius = std::min(cornerRadius, std::min(edgeLen, crossLen)/2);
+
+  real pos = 0;
+  switch(side) {
+    case ARROW_TOP:  pos = arrowPos - body.left;  break;
+    case ARROW_BOTTOM:  pos = body.right - arrowPos;  break;
+    default:  pos = arrowPos - body.top;  break;
+  }
+  pos = std::min(std::max(pos, radius + arrowSize), edgeLen - radius - arrowSize);
+
+  Path2D path;
+  path.moveTo(radius, 0);
+  if(hasArrow) {
+    path.lineTo(pos - arrowSize, 0);
+    path.lineTo(pos, -arrowSize);
+    path.lineTo(pos + arrowSize, 0);
+  }
+  path.lineTo(edgeLen - radius, 0);
+  path.addArc(edgeLen - radius, radius, radius, radius, -M_PI/2, M_PI/2);
+  path.lineTo(edgeLen, crossLen - radius);
+  path.addArc(edgeLen - radius, crossLen - radius, radius, radius, 0, M_PI/2);
+  path.lineTo(radius, crossLen);
+  path.addArc(radius, crossLen - radius, radius, radius, M_PI/2, M_PI/2);
+  path.lineTo(0, radius);
+  path.addArc(radius, radius, radius, radius, M_PI, M_PI/2);
+  path.closeSubpath();
+
+  Transform2D tf;
+  switch(side) {
+    case ARROW_TOP:  tf = Transform2D(1, 0, 0, 1, body.left, body.top);  break;
+    case ARROW_BOTTOM:  tf = Transform2D(-1, 0, 0, -1, body.right, body.bottom);  break;
+    case ARROW_LEFT:  tf = Transform2D(0, 1, 1, 0, body.left, body.top);  break;
+    default:  tf = Transform2D(0, 1, -1, 0, body.right, body.top);  break;
+  }
+  path.transform(tf);
+  // outer (and thus the path) is in window coordinates - map it back into the background node's own space
+  Transform2D anctf = ancestorTransform(bgNode);
+  if(!anctf.isIdentity())
+    path.transform(anctf.inverse());
+
+  *static_cast<SvgPath*>(bgNode)->path() = path;
+  bgNode->invalidate(false);
+}
+
+
+// menu-item content in a popup behaves exactly as in a Menu (hover opens submenus, click closes the whole
+//  tree); this works because SvgGui::closeMenus() treats an arrow popup on the menu stack like a menu
+void ArrowPopup::addItem(Button* btn) { setupMenuItem(btn);  addWidget(btn); }
+
+Button* ArrowPopup::addItem(const char* name, const SvgNode* icon, const std::function<void()>& callback)
+{
+  Button* item = createMenuItem(name, icon);
+  item->onClicked = callback;
+  addItem(item);
+  return item;
+}
+
+Button* ArrowPopup::addAction(Action* action)
+{
+  Button* item = createActionMenuItem(action);
+  addItem(item);
+  return item;
+}
+
+Button* ArrowPopup::addSubmenu(const char* title, Menu* submenu)
+{
+  Button* item = new Button(widgetNode("#menuitem-submenu"));
+  item->selectFirst(".title")->setText(title);
+  item->setMenu(submenu);
+  addItem(item);
+  return item;
+}
+
+// a popup submenu can't go through Button::setMenu() (which only takes a Menu), so the open-on-hover and
+//  close-siblings behavior of setupMenuItem() is reproduced here for the popup
+Button* ArrowPopup::addSubmenu(const char* title, ArrowPopup* submenu)
+{
+  Button* item = new Button(widgetNode("#menuitem-submenu"));
+  item->selectFirst(".title")->setText(title);
+  item->addWidget(submenu);  // submenu is positioned relative to its parent, i.e. this row
+  item->addHandler([item, submenu](SvgGui* gui, SDL_Event* event){
+    if(event->type == SvgGui::ENTER && !submenu->isVisible()) {
+      gui->closeMenus(item);  // close sibling submenu, if any, but not the popup holding this row
+      gui->showMenu(submenu);
+      item->node->addClass("pressed");  // removed by closeMenus(), which unpresses the submenu's parent
+    }
+    return false;  // continue to Button handler
+  });
+  addWidget(item);
+  return item;
+}
+
+void ArrowPopup::addSeparator()
+{
+  addWidget(new Widget(widgetNode("#menu-separator")));
+}
+
+ArrowPopup* createArrowPopup(int align)
+{
+  return new ArrowPopup(widgetNode("#arrowpopup"), align);
+}
+
+// unlike setupPressedPopup, this is for popups that are shown/hidden explicitly (e.g. by tapping a
+//  swatch or toggle button) rather than tied to a press-and-hold target; mirrors how Menu auto-closes.
+// note: pressedWidget (set via gui->setPressed()) is unconditionally cleared by SvgGui on every
+//  finger/mouse up, so it cannot be used to detect a later, separate outside click - only the menu
+//  stack (gui->showMenu()/closeMenus(), also used by Menu) persists long enough for that, hence
+//  openAutoClosePopup()/closeAutoClosePopup() below must be used instead of setVisible() directly
+void setupAutoClosePopup(ArrowPopup* popup)
+{
+  popup->isPressedGroupContainer = true;
+  popup->addHandler([popup](SvgGui* gui, SDL_Event* event){
+    if(event->type == SvgGui::OUTSIDE_PRESSED) {
+      gui->closeMenus();
+      return true;
+    }
+    if(event->type == SvgGui::OUTSIDE_MODAL)
+      gui->closeMenus();
+    return false;  // don't swallow the event (let it also reach whatever's underneath)
+  });
+}
+
+void openAutoClosePopup(ArrowPopup* popup)
+{
+  SvgGui* gui = popup->window() ? popup->window()->gui() : NULL;
+  if(gui)
+    gui->showMenu(popup);
+  else
+    popup->setVisible(true);
+}
+
+void closeAutoClosePopup(ArrowPopup* popup)
+{
+  if(!popup->isVisible())
+    return;
+  SvgGui* gui = popup->window() ? popup->window()->gui() : NULL;
+  if(gui)
+    gui->closeMenus();
+  else
+    popup->setVisible(false);
+}
+
+void setupPressedPopup(Widget* target, ArrowPopup* popup)
+{
+  target->addWidget(popup);
+  target->addHandler([popup](SvgGui* gui, SDL_Event* event){
+    if(event->type == SDL_FINGERDOWN)
+      popup->setVisible(true);
+    else if(event->type == SDL_FINGERUP || event->type == SvgGui::LEAVE
+        || event->type == SvgGui::OUTSIDE_PRESSED)
+      popup->setVisible(false);
+    return false;  // don't swallow event
+  });
 }
 
 // consider moving Action out of widgets.cpp and replace addAction with Action::addTo(Menu*),
@@ -509,14 +811,21 @@ void Action::addButton(Button* btn)
   //return button;  // chaining?
 }
 
-Button* Menu::addAction(Action* action)
+// shared by Menu::addAction() and ArrowPopup::addAction(); caller must still add the item to itself
+Button* createActionMenuItem(Action* action)
 {
   Button* item = (action->checkable && !action->icon()) ?
       createCheckBoxMenuItem(action->title.c_str()) : createMenuItem(action->title.c_str(), action->icon());
   action->addButton(item);
-  addItem(item);
   if(!action->tooltip.empty())
     setupTooltip(item, action->tooltip.c_str());
+  return item;
+}
+
+Button* Menu::addAction(Action* action)
+{
+  Button* item = createActionMenuItem(action);
+  addItem(item);
   return item;
 }
 

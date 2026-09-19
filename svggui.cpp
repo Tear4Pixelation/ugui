@@ -659,8 +659,10 @@ static lay_id prepareLayout(lay_context* ctx, Widget* ext)
   lay_set_behave(ctx, id, ext->layBehave & LAY_ITEM_LAYOUT_MASK);
 
   if(bbox.isValid()) {
-    float w = (ext->layBehave & LAY_HFILL) != LAY_HFILL ? bbox.width() : 0;  //int(bbox.width() + 0.5)
-    float h = (ext->layBehave & LAY_VFILL) != LAY_VFILL ? bbox.height() : 0;  //int(bbox.height() + 0.5)
+    // note that a size set for a fill dimension is only used to calculate the container's size; the
+    //  widget is still stretched to fill (see LAY_HFILL cases in lay_arrange_* in layout.h)
+    float w = ext->fillReportsSize || (ext->layBehave & LAY_HFILL) != LAY_HFILL ? bbox.width() : 0;  //int(bbox.width() + 0.5)
+    float h = ext->fillReportsSize || (ext->layBehave & LAY_VFILL) != LAY_VFILL ? bbox.height() : 0;  //int(bbox.height() + 0.5)
     if(w > 0 || h > 0)
       lay_set_size_xy(ctx, id, w, h);  // this will fix size of node
   }
@@ -855,7 +857,9 @@ void SvgGui::closeMenus(const Widget* parent_menu, bool closegroup)
     if(closegroup)
       parent_menu = getPressedGroupContainer(const_cast<Widget*>(parent_menu));
     // can we do better than checking for class=menu?
-    while(parent_menu && !parent_menu->node->hasClass("menu"))
+    // an arrow popup pushed on the menu stack (see setupAutoClosePopup) acts as a menu container too, so
+    //  items inside it can open submenus without closing the popup itself
+    while(parent_menu && !parent_menu->node->hasClass("menu") && !parent_menu->node->hasClass("arrowpopup"))
       parent_menu = parent_menu->parent();
     //if(!parent_menu) return;  -- this breaks menubar behavior
   }

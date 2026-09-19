@@ -17,10 +17,23 @@ Button* createColorBtn()
 // move to widgets.cpp when we find another use case
 Widget* createTabBar(const std::vector<std::string>& titles, std::function<void(int)> onChanged)
 {
-  Widget* row = createRow();
+  static const char* tabBarSVG = R"#(
+    <g class="tabbar" layout="box">
+      <rect class="tabbar-bg" box-anchor="fill" width="20" height="20" rx="8" ry="8"/>
+      <g class="tabbar-row" box-anchor="fill" layout="flex" flex-direction="row" margin="2 4"/>
+    </g>
+  )#";
+  static const char* tabBtnSVG = R"#(
+    <g class="tabbar-btn" layout="box">
+      <rect fill="none" width="10" height="26"/>
+      <text class="title" margin="0 12"></text>
+    </g>
+  )#";
+  Widget* bar = new Widget(loadSVGFragment(tabBarSVG));
+  Widget* row = bar->selectFirst(".tabbar-row");
   for(size_t ii = 0; ii < titles.size(); ++ii) {
-    Button* btn = createToolbutton(NULL, titles[ii].c_str(), true);
-    btn->node->addClass("tabbar-btn");
+    Button* btn = new Button(loadSVGFragment(tabBtnSVG));
+    btn->setTitle(titles[ii].c_str());
     if(ii == 0) btn->setChecked(true);
     btn->onClicked = [=](){
       if(btn->isChecked()) return;
@@ -31,7 +44,7 @@ Widget* createTabBar(const std::vector<std::string>& titles, std::function<void(
     };
     row->addWidget(btn);
   }
-  return row;
+  return bar;
 }
 
 ColorEditBox* createColorEditBox(bool allowAlpha, ColorSliders* colorSliders)
@@ -41,7 +54,7 @@ ColorEditBox* createColorEditBox(bool allowAlpha, ColorSliders* colorSliders)
       <g class="colorbox_content" box-anchor="fill" layout="flex" flex-direction="row">
         <g class="inputbox textbox colorbox_text" box-anchor="hfill" layout="box">
           <rect class="min-width-rect" fill="none" width="150" height="36"/>
-          <rect class="inputbox-bg" box-anchor="fill" width="150" height="36"/>
+          <rect class="inputbox-bg" box-anchor="fill" width="150" height="36" rx="8" ry="8"/>
         </g>
         <!-- preview button goes here -->
       </g>
@@ -72,7 +85,6 @@ ColorEditBox* createColorEditBox(bool allowAlpha, bool withColorPicker)
   if(colorSliders) {
     auto setVisibleGroup = [=](int tabnum){ colorSliders->setVisibleGroup(tabnum != 0); };
     Widget* tabBar = createTabBar({"RGB", "HSV"}, setVisibleGroup);
-    tabBar->addWidget(createStretch());
     Widget* colorPicker = createColumn({tabBar, colorSliders});
 
     Menu* colorPickerMenu = createMenu(Menu::VERT_LEFT);
@@ -188,16 +200,16 @@ Slider* createGradientSlider()
       <g class="slider-bg-container" shape-rendering="crispEdges" box-anchor="hfill" layout="box" margin="0 10">
         <!-- invisible rect to set minimum width -->
         <rect width="320" height="36" fill="none"/>
-        <rect box-anchor="hfill" width="320" height="36" fill="white"/>
-        <rect class="slider-checkerboard" box-anchor="hfill" display="none" width="320" height="36" fill="url(#checkerboard)"/>
-        <rect class="slider-bg" box-anchor="hfill" width="320" height="36" fill="url(#slider_grad)"/>
+        <rect box-anchor="hfill" width="320" height="24" rx="12" ry="12" fill="white"/>
+        <rect class="slider-checkerboard" box-anchor="hfill" display="none" width="320" height="24" rx="12" ry="12" fill="url(#checkerboard)"/>
+        <rect class="slider-bg" box-anchor="hfill" width="320" height="24" rx="12" ry="12" fill="url(#slider_grad)"/>
       </g>
       <g class="slider-handle-container" box-anchor="left">
         <!-- invisible rect to set left edge of box so slider-handle can move freely -->
         <rect width="36" height="36" fill="none"/>
         <g class="slider-handle" transform="translate(10,0)">
-          <rect fill="grey" x="-7" y="-3" width="14" height="42"/>
-          <rect fill="black" x="-4" y="0" width="8" height="36"/>
+          <rect class="color-slider-thumb-outer" x="-7" y="-3" width="14" height="42"/>
+          <rect class="slider-thumb-inner" fill="black" x="-4" y="0" width="8" height="36" rx="4" ry="4"/>
         </g>
       </g>
     </g>
@@ -223,7 +235,9 @@ Slider* ColorSliders::createGroup(
   }
 
   slider->onValueChanged = callback; //[callback, min, max](Dim v){ callback(int(0.5 + min + (max-min)*v)); };
-  addWidget(createTitledRow(title, slider));
+  Widget* row = createTitledRow(title, slider);
+  row->selectFirst(".row-text")->node->addClass("color-slider-label");
+  addWidget(row);
   return slider;
 }
 
@@ -291,6 +305,12 @@ void ColorSliders::setSliderColors(Slider* slider, ColorF start, ColorF stop)
   SvgGradient* gradnode = static_cast<SvgGradient*>(bgnode->getRefTarget(bgnode->getStringAttr("fill")));
   gradnode->stops()[0]->setAttr<color_t>("stop-color", start.toColor().color);
   gradnode->stops()[1]->setAttr<color_t>("stop-color", stop.toColor().color);
+
+  // thumb shows the actual color at the slider's current position, like the track it sits on
+  real t = slider->value();
+  ColorF thumb(start.r + (stop.r - start.r)*t, start.g + (stop.g - start.g)*t,
+      start.b + (stop.b - start.b)*t, start.a + (stop.a - start.a)*t);
+  slider->containerNode()->selectFirst(".slider-thumb-inner")->setAttr<color_t>("fill", thumb.toColor().color);
 }
 
 // proper way to handle HSV would be to use ColorF
@@ -320,6 +340,8 @@ void ColorSliders::updateWidgets(bool rgb, bool hsv)
     sliderV->setValue(v);
   }
   //setSliderColors(sliderH, Color::fromHSV(0, s, v), Color::fromHSV(359, s, v));  -- hue slider colors fixed
+  sliderH->containerNode()->selectFirst(".slider-thumb-inner")->setAttr<color_t>(
+      "fill", ColorF::fromHSV(h, 1, 1).toColor().color);
   setSliderColors(sliderS, ColorF::fromHSV(h, 0, v), ColorF::fromHSV(h, 1, v));
   setSliderColors(sliderV, ColorF::fromHSV(h, s, 0), ColorF::fromHSV(h, s, 1));
 

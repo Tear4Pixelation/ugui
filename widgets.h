@@ -92,6 +92,52 @@ public:
   bool autoClose = false;
 };
 
+// rounded rect popup with a triangular pointer on the edge facing the widget it is anchored to; uses the
+//  same alignment flags as Menu
+class ArrowPopup : public AbsPosWidget
+{
+public:
+  enum ArrowSide { ARROW_TOP=0, ARROW_BOTTOM, ARROW_LEFT, ARROW_RIGHT };
+  int mAlign = 0;
+  real cornerRadius;
+  real arrowSize;  // height of the pointer, and half of its base width
+
+  ArrowPopup(SvgNode* n, int align);
+
+  void addWidget(Widget* item) { selectFirst(".child-container")->addWidget(item); }
+  void setAlign(int align);
+  Point calcOffset(const Rect& pb) const override;
+
+  // a popup can also hold menu items (including submenus), behaving like a Menu but with popup chrome
+  void addItem(Button* btn);
+  Button* addItem(const char* name, const SvgNode* icon, const std::function<void()>& callback);
+  Button* addAction(Action* action);
+  Button* addSubmenu(const char* title, Menu* submenu);
+  // a submenu can be another popup, so a whole menu tree can use the popup styling
+  Button* addSubmenu(const char* title, ArrowPopup* submenu);
+  void addSeparator();
+
+private:
+  void updateBackground(const Rect& outer, int side, real arrowPos) const;
+
+  SvgNode* bgNode;
+  Widget* contentWidget;
+  mutable Rect bgRect;
+  mutable int bgSide = -1;
+  mutable real bgPos = 0;
+};
+
+ArrowPopup* createArrowPopup(int align);
+// popup is shown while target is pressed and hidden on release, like a tooltip
+void setupPressedPopup(Widget* target, ArrowPopup* popup);
+// popup closes itself when something outside it is pressed, like a Menu; must show/hide the popup via
+//  openAutoClosePopup()/closeAutoClosePopup() below rather than setVisible() directly, since this relies
+//  on SvgGui's menu stack (unlike pressed/hovered state, this persists across the press/release that
+//  opened the popup, which is required to detect a *later*, separate outside click)
+void setupAutoClosePopup(ArrowPopup* popup);
+void openAutoClosePopup(ArrowPopup* popup);
+void closeAutoClosePopup(ArrowPopup* popup);
+
 class Toolbar : public Widget
 {
 public:
@@ -316,6 +362,8 @@ SvgDocument* createWindowNode(const char* svg = R"#(<svg class="window" layout="
 // should we do, e.g., CheckBox::create() instead of createCheckBox()?
 Menu* createMenu(int align, bool showicons = true);
 Button* createMenuItem(const char* title, const SvgNode* icon = NULL);
+// menu item bound to an action; the caller adds it to a menu, popup or plain container itself
+Button* createActionMenuItem(Action* action);
 Button* createCheckBoxMenuItem(const char* title, const char* cbnode = "#checkbox");
 Button* createMenuItem(Widget* contents);
 Toolbar* createToolbar(std::initializer_list<Widget*> contents = {}, const char* tbnode = "#toolbar");

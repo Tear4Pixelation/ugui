@@ -9,7 +9,13 @@ svg.window  /* :root */
   --base: #202020;  /* list, inputbox */
   --button: #555555;
   --hovered: #32809C;
+  /* hover tints an item's own text/icon rather than filling the row behind it */
+  --hovered-text: #2EA3CF;
+  --hovered-icon: #2EA3CF;
   --pressed: #32809C;
+  /* pressed tints too, a step brighter than hover so the click still reads */
+  --pressed-text: #8FD9F2;
+  --pressed-icon: #8FD9F2;
   --checked: #0000C0;
   --title: #2EA3CF;
   --text: #F2F2F2;
@@ -17,6 +23,15 @@ svg.window  /* :root */
   --text-bg: #000000;
   --icon: #CDCDCD;
   --icon-disabled: #808080;
+  --canvas: #444444;  /* area around page - also used by ScribbleArea::BACKGROUND_COLOR */
+  --panel-outline: #ACACAC;
+  --panel-outline-width: 1;
+  --on-dark-surface: #202020;  /* color picker: swatch ring, tab bar bg, hex input bg */
+  /* rows inside a popup: no background of their own, just a rounded highlight on the popup surface */
+  --popup-item-hovered: #2C2C2C;
+  --popup-item-checked: #32809C;
+  --popup-item-radius: 8;
+  --popup-separator: #383838;
 }
 
 /* light theme */
@@ -28,7 +43,11 @@ svg.window.light
   --base: #FFFFFF;
   --button: #D0D0D0;
   --hovered: #B8D8F9;
+  --hovered-text: #1A7FA6;
+  --hovered-icon: #1A7FA6;
   --pressed: #B8D8F9;
+  --pressed-text: #0C4F68;
+  --pressed-icon: #0C4F68;
   --checked: #A2CAEF;
   --title: #2EA3CF;
   --text: #000000;
@@ -36,25 +55,52 @@ svg.window.light
   --text-bg: #F2F2F2;
   --icon: #303030;
   --icon-disabled: #A0A0A0;
+  --canvas: #BBBBBB;
+  --panel-outline: #A0A0A0;
+  --panel-outline-width: 1;
+  --popup-item-hovered: #E4E4E4;
+  --popup-item-checked: #B8D8F9;
+  --popup-separator: #CCCCCC;
 }
 )#";
 
 const char* defaultStyleCSS = R"#(
 .menu { fill: var(--light); }
 .menuitem { fill: var(--window); }
-.menuitem.hovered { fill: var(--hovered); }
+/* Hover/press keep the resting background and tint the row's own title and icon instead.
+   These have to be *child* selectors, not descendant ones: a submenu is a child widget of the row
+   that opens it and that row stays hovered/pressed the whole time the submenu is up, so a
+   descendant selector would tint every row of the submenu along with its parent. Matching the
+   exact depth of #menuitem-standard (menuitem > g > title | g > .menu-icon-container > .icon)
+   keeps each row's state strictly its own, at any nesting depth. */
+.menuitem.hovered { fill: var(--window); }
+.menuitem.hovered > g > .title { fill: var(--hovered-text); }
+.menuitem.hovered > g > .icon { fill: var(--hovered-icon); color: var(--hovered-icon); }
+.menuitem.hovered > g > g > .icon { fill: var(--hovered-icon); color: var(--hovered-icon); }
 .menuitem.checked { fill: var(--checked); }
 .cbmenuitem.checked { fill: var(--window); }
-.cbmenuitem.hovered { fill: var(--hovered); }
-.menuitem.pressed { fill: var(--pressed); }
+.cbmenuitem.hovered { fill: var(--window); }
+.menuitem.pressed { fill: var(--window); }
+.menuitem.pressed > g > .title { fill: var(--pressed-text); }
+.menuitem.pressed > g > .icon { fill: var(--pressed-icon); color: var(--pressed-icon); }
+.menuitem.pressed > g > g > .icon { fill: var(--pressed-icon); color: var(--pressed-icon); }
+/* a disabled row never tints - listed after the states above, which it ties with on specificity */
 .menuitem.disabled { fill: var(--light); }
+.menuitem.disabled > g > .title { fill: var(--icon-disabled); }
+.menuitem.disabled > g > .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
+.menuitem.disabled > g > g > .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
 
-.menu-icon-container { display: block; }
+/* icon slot collapses unless the item actually has an icon, so titles without one start at the left edge;
+   CSS outranks the display attribute (CSSSrc > XMLSrc), so this can't be done with setVisible() */
+.menu-icon-container { display: none; }
+.has-icon .menu-icon-container { display: block; }
 .no-icon-menu .menu-icon-container { display: none; }
 
 .list { fill: var(--base); }
 .listitem { fill: var(--base); }
-.listitem.pressed { fill: var(--pressed); }
+.listitem.pressed { fill: var(--base); }
+.listitem.pressed text { fill: var(--pressed-text); }
+.listitem.pressed .icon { fill: var(--pressed-icon); color: var(--pressed-icon); }
 
 /* stroked paths in icons use stroke="currentColor" for now */
 .icon { fill: var(--icon); color: var(--icon); }
@@ -73,12 +119,42 @@ text.disabled { fill: var(--light); }
 .toolbar { fill: var(--dark); }
 .toolbar.graybar { fill: var(--light); }
 .toolbar.statusbar .toolbar-bg { fill-opacity: 0.75; }
+/* round color/thickness swatches (pen options row): the mockup rings each swatch in the
+   canvas color so that a black or white one still reads as a circle on the dark toolbar */
+.swatch-btn .btn-color { stroke: var(--canvas); stroke-width: 2; }
 .toolbutton { fill: none; }
-.toolbutton.hovered { fill: var(--hovered); }
-.toolbutton.pressed { fill: var(--pressed); }
-.toolbutton.checked .checkmark { fill: #0080FF; }  /* highlight ... was #0000C0 */
+/* hovering a toolbutton tints its icon instead of filling the whole cell behind it; child selectors
+   for the same reason as the menu rows above - a popup opened by this button is a child of it */
+.toolbutton.hovered { fill: none; }
+.toolbutton.hovered > g > .icon { fill: var(--hovered-icon); color: var(--hovered-icon); }
+.toolbutton.hovered > g > .title { fill: var(--hovered-text); }
+.toolbutton.pressed { fill: none; }
+.toolbutton.pressed > g > .icon { fill: var(--pressed-icon); color: var(--pressed-icon); }
+.toolbutton.pressed > g > .title { fill: var(--pressed-text); }
+.toolbutton.checked > g > .icon { fill: var(--title); color: var(--title); }  /* highlight ... was #0000C0 */
 
-.toolbutton.checked.once .checkmark { fill: #0060C0; }  /* for non-sticky; random color between pressed and checked */
+.toolbutton.checked.once > g > .icon { fill: var(--title); }  /* non-sticky; between pressed and checked */
+
+.arrowpopup { fill: var(--dark); }
+.arrowpopup-bg { stroke: var(--panel-outline); stroke-width: var(--panel-outline-width); }
+/* menu rows hosted in a popup (see ArrowPopup::addItem) sit directly on the popup surface: no per-row
+   background, just a rounded highlight when hovered/checked, matching the color and help popups */
+.arrowpopup .menuitem { fill: none; }
+.arrowpopup .menuitem-bg { border-radius: var(--popup-item-radius); }
+.arrowpopup .menuitem.hovered { fill: none; }
+.arrowpopup .menuitem.pressed { fill: none; }
+.arrowpopup .menuitem.checked { fill: var(--popup-item-checked); }
+.arrowpopup .cbmenuitem.checked { fill: none; }
+.arrowpopup .menuitem.disabled { fill: none; }
+.arrowpopup .separator { fill: var(--popup-separator); }
+/* a menu item carries its own inset because a Menu has no content padding of its own; inside a popup
+   that inset would stack on the popup's padding, leaving items indented further than everything else.
+   Only the outer (left) inset is dropped - the gap between an icon and its title is kept. */
+.arrowpopup .menuitem .title { margin: 0 8 0 0; }
+.arrowpopup .menuitem.has-icon .title { margin: 0 8; }
+.arrowpopup .menuitem.has-icon .menu-icon-container { margin: 0; }
+text.arrowpopup-title { fill: var(--text); font-size: 15; font-weight: bold; }
+text.arrowpopup-desc { fill: var(--text-weak); font-size: 13; }
 
 .tooltip { fill: #FFFFCF; font-size: 13; }
 .tooltip text { fill: #000000; }
@@ -90,6 +166,11 @@ text.disabled { fill: var(--light); }
 
 .statusbar { font-size: 24; }  /* to go with 50% scaling hack */
 .statusbar .tooltip { font-size: 24; }
+
+/* items offered on the blank pane of a split view: no resting background, hover/press feedback only */
+.split-placeholder .menuitem { fill: none; }
+.split-placeholder .menuitem.hovered { fill: none; }
+.split-placeholder .menuitem.pressed { fill: none; }
 
 .warning { fill: #FFFF00; }
 .warning text { fill: #000000; }
@@ -103,14 +184,16 @@ text.disabled { fill: var(--light); }
 
 /* for color and width preview buttons with stroked borders */
 .previewbtn { color: #808080; }
-.previewbtn.hovered { color: var(--hovered); }
-.previewbtn.pressed { color: var(--pressed); }
+.previewbtn.hovered { color: var(--hovered-icon); }
+.previewbtn.pressed { color: var(--pressed-icon); }
 
 /* combobox, textbox, spinbox */
 .inputbox { fill: var(--base); }
 .comboitem { fill: var(--base); }  /* #181818 */
-.comboitem.hovered { fill: var(--hovered); }
-.comboitem.pressed { fill: var(--pressed); }
+.comboitem.hovered { fill: var(--base); }
+.comboitem.hovered text { fill: var(--hovered-text); }
+.comboitem.pressed { fill: var(--base); }
+.comboitem.pressed text { fill: var(--pressed-text); }
 .inputbox.disabled text { fill: var(--light); }
 .disabled .inputbox text { fill: var(--light); }
 
@@ -123,6 +206,16 @@ text.disabled { fill: var(--light); }
 
 .slider-handle-outer { fill: grey; }
 .slider-handle-inner { fill: black; }
+
+/* color picker: R/G/B/H/S/V/A gradient sliders (colorwidgets.cpp) */
+.color-slider-thumb-outer { fill: var(--dark); }
+.color-slider-label { fill: var(--text-weak); }
+.color-popup-title { fill: var(--text); font-size: 18; font-weight: bold; }
+.tabbar-bg { fill: var(--on-dark-surface); }
+.tabbar-btn .title { fill: var(--icon); }
+.tabbar-btn.checked .title { fill: var(--title); font-weight: bold; }
+.colorbtn-ring { fill: var(--on-dark-surface); }
+.colorbox_text .inputbox-bg { fill: var(--on-dark-surface); }
 
 .scroll-handle { fill: var(--title); }
 
@@ -184,27 +277,32 @@ static const char* defaultWidgetSVG = R"#(
     </g>
   </g>
 
+  <!-- background path is regenerated by ArrowPopup at layout time; initial size just sets a minimum -->
+  <g id="arrowpopup" class="arrowpopup" display="none" position="absolute" box-anchor="fill" layout="box">
+    <path class="background arrowpopup-bg" box-anchor="fill" d="M0 0 H20 V20 H0 Z"/>
+    <g class="child-container" box-anchor="fill" layout="flex" flex-direction="column">
+    </g>
+  </g>
+
   <!-- thin space between menu items acts as separator, so we don't want class=background on menu item BG -->
   <g id="menuitem-standard" class="menuitem" box-anchor="fill" margin="1 0" layout="box">
     <rect class="menuitem-bg" box-anchor="hfill" width="150" height="36"/>
     <g box-anchor="left vfill" layout="flex" flex-direction="row">
-      <g class="menu-icon-container" layout="box" margin="0 2">
-        <!-- invisible rectangle is to fix size even if no icon -->
-        <rect fill="none" width="36" height="36"/>
-        <use display="none" class="icon" width="36" height="36" xlink:href=""/>
+      <g class="menu-icon-container" layout="box" margin="0 0 0 8">
+        <use display="none" class="icon" width="23.04" height="23.04" xlink:href=""/>
       </g>
-      <text class="title" margin="0 12"></text>
+      <text class="title" margin="0 8"></text>
     </g>
   </g>
 
   <g id="menuitem-submenu" class="menuitem" box-anchor="fill" margin="1 0" layout="box">
     <rect class="menuitem-bg" box-anchor="hfill" width="150" height="36"/>
     <g box-anchor="fill" layout="flex" flex-direction="row">
-      <g class="menu-icon-container" layout="box" margin="0 2">
-        <rect fill="none" width="36" height="36"/>
+      <g class="menu-icon-container" layout="box" margin="0 0 0 8">
+        <use display="none" class="icon" width="23.04" height="23.04" xlink:href=""/>
       </g>
-      <text class="title" margin="0 12"></text>
-      <rect class="stretch" box-anchor="fill" fill="none" width="20" height="20"/>
+      <text class="title" margin="0 8"></text>
+      <rect class="stretch" box-anchor="fill" fill="none" width="8" height="36"/>
       <use class="icon submenu-indicator" width="24" height="24" xlink:href="#chevron-right" />
     </g>
   </g>
@@ -233,11 +331,11 @@ static const char* defaultWidgetSVG = R"#(
   </g>
 
   <!-- note that class=checkmark can be moved to the filling rect to color whole background when checked -->
-  <g id="toolbutton" class="toolbutton" layout="box">
+  <g id="toolbutton" class="toolbutton" layout="box" margin="0 4">
     <rect class="background" box-anchor="hfill" width="36" height="42"/>
     <rect class="checkmark" box-anchor="bottom hfill" margin="0 2" fill="none" width="36" height="3"/>
-    <g margin="0 3" box-anchor="fill" layout="flex" flex-direction="row">
-      <use class="icon" width="36" height="36" xlink:href="" />
+    <g margin="0 3" box-anchor="fill" layout="flex" flex-direction="row" justify-content="center">
+      <use class="icon" width="23.04" height="23.04" xlink:href="" />
       <text class="title" display="none" margin="0 9"></text>
     </g>
   </g>
@@ -362,15 +460,17 @@ static const char* defaultWidgetSVG = R"#(
   <rect id="scroll-handle" class="scroll-handle" box-anchor="vfill" width="4" height="20" rx="2" ry="2"/>
 
   <g id="colorbutton" class="color_preview previewbtn">
+    <rect class="min-width-rect" fill="none" width="37" height="37"/>
     <pattern id="checkerboard" x="0" y="0" width="18" height="18"
         patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse">
       <rect fill="black" fill-opacity="0.1" x="0" y="0" width="9" height="9"/>
       <rect fill="black" fill-opacity="0.1" x="9" y="9" width="9" height="9"/>
     </pattern>
 
-    <rect fill="white" x="1" y="1" width="35" height="35" />
-    <rect fill="url(#checkerboard)" x="1" y="1" width="35" height="35" />
-    <rect class="btn-color" stroke="currentColor" stroke-width="2" fill="blue" x="1" y="1" width="35" height="35" />
+    <circle class="colorbtn-ring" cx="18" cy="18" r="17.5" />
+    <circle fill="white" cx="18" cy="18" r="13.5" />
+    <circle fill="url(#checkerboard)" cx="18" cy="18" r="13.5" />
+    <circle class="btn-color" fill="blue" cx="18" cy="18" r="13.5" />
   </g>
 
 </svg>
