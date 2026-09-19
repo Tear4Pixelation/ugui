@@ -7,7 +7,8 @@ svg.window  /* :root */
   --window: #303030;  /* menu, dialog */
   --light: #505050;  /* separator */
   --base: #202020;  /* list, inputbox */
-  --button: #555555;
+  --button: #333333;  /* pushbuttons sit on the popup surface (--dark), so they stay close to it */
+  --button-radius: 8;
   --hovered: #32809C;
   /* hover tints an item's own text/icon rather than filling the row behind it */
   --hovered-text: #2EA3CF;
@@ -16,7 +17,7 @@ svg.window  /* :root */
   /* pressed tints too, a step brighter than hover so the click still reads */
   --pressed-text: #8FD9F2;
   --pressed-icon: #8FD9F2;
-  --checked: #0000C0;
+  --checked: #2EA3CF;  /* same as --title: an active control reads like an active icon */
   --title: #2EA3CF;
   --text: #F2F2F2;
   --text-weak: #A0A0A0;
@@ -41,14 +42,14 @@ svg.window.light
   --window: #DDDDDD;
   --light: #CCCCCC;
   --base: #FFFFFF;
-  --button: #D0D0D0;
+  --button: #C0C0C0;
   --hovered: #B8D8F9;
   --hovered-text: #1A7FA6;
   --hovered-icon: #1A7FA6;
   --pressed: #B8D8F9;
   --pressed-text: #0C4F68;
   --pressed-icon: #0C4F68;
-  --checked: #A2CAEF;
+  --checked: #2EA3CF;
   --title: #2EA3CF;
   --text: #000000;
   --text-weak: #606060;
@@ -156,6 +157,17 @@ text.disabled { fill: var(--light); }
 text.arrowpopup-title { fill: var(--text); font-size: 15; font-weight: bold; }
 text.arrowpopup-desc { fill: var(--text-weak); font-size: 13; }
 
+/* centered popup dialogs (unsaved changes, preferences, ...): the arrow popup's surface without the
+   arrow - same fill, outline and corner rounding. Padding is applied by PopupDialog, not here, so
+   that there is a single place to tweak it (see widgets.cpp). The surface fill is set next to the
+   .dialog rule below, which would otherwise override it. */
+.dialogpopup-bg { stroke: var(--panel-outline); stroke-width: var(--panel-outline-width);
+    shape-rendering: auto; }  /* the rounded corners need antialiasing, unlike a plain .background */
+/* margin must be zeroed here: text.window-title above sets one, and CSS outranks the margin
+   attribute PopupDialog would set on the node; the gap below the title is PopupDialog::TITLE_GAP,
+   applied to the body container instead */
+text.dialogpopup-title { fill: var(--text); font-size: 17; font-weight: bold; margin: 0; }
+
 .tooltip { fill: #FFFFCF; font-size: 13; }
 .tooltip text { fill: #000000; }
 .tooltip .alttext { font-size: 11; font-style: italic; }
@@ -176,8 +188,11 @@ text.arrowpopup-desc { fill: var(--text-weak); font-size: 13; }
 .warning text { fill: #000000; }
 
 .pushbutton { fill: var(--button); }
+/* rounded like everything else on a popup surface; shape-rendering because rect.background below
+   asks for crispEdges, which would leave the corners jagged */
+.pushbtn-bg { border-radius: var(--button-radius); shape-rendering: auto; }
 .pushbutton.pressed { fill: var(--pressed); }
-.pushbutton.disabled { fill: #404040; }
+.pushbutton.disabled { fill: #222222; }  /* below --button, which is now dark itself */
 .pushbutton.checked { fill: var(--checked); }
 
 .button-container .pushbutton { margin: 0 4; }
@@ -198,7 +213,7 @@ text.arrowpopup-desc { fill: var(--text-weak); font-size: 13; }
 .disabled .inputbox text { fill: var(--light); }
 
 .checkbox { color: var(--icon); }
-.checkmark { color: #33B3E3; }
+.checkmark { color: var(--title); }  /* active control = active icon color */
 .checkbox .checkmark { display: none; }
 .checkbox.checked .checkmark { display: block; }
 .cbmenuitem.checked .checkmark { display: block; }
@@ -231,6 +246,7 @@ tspan.weak { fill: var(--text-weak); }
 .textbox-container { margin: 0 2; }
 
 .hrule { fill: var(--light); }
+.spacer { fill: none; }  /* blank gap where a rule would otherwise separate sections */
 .hrule.title { fill: var(--title); }
 .hrule.title.inactive { fill: #D8D8D8; }
 
@@ -239,6 +255,7 @@ tspan.weak { fill: var(--text-weak); }
 .disabled .window-overlay { display: block; }
 
 .dialog { fill: var(--window); }  /* .dialog-bg doesn't work for scroll view inside dialog! */
+.dialogpopup { fill: var(--dark); }  /* popup dialogs sit on the arrow popup surface instead */
 .panel-header { fill: var(--window); }
 .panel-header .toolbar { fill: var(--window); }
 
@@ -453,6 +470,19 @@ static const char* defaultWidgetSVG = R"#(
       <g class="body-container" box-anchor="fill" layout="flex" flex-direction="column">
       </g>
       <g class="button-container dialog-buttons" margin="5 4" box-anchor="hfill" layout="flex" flex-direction="row">
+      </g>
+    </g>
+  </svg>
+
+  <!-- centered popup dialog: the arrow popup's look minus the arrow; padding and corner radius are
+       applied by PopupDialog at construction (widgets.cpp), keeping them in one place -->
+  <svg id="popupdialog" class="window dialog dialogpopup" display="none" layout="box">
+    <rect class="dialog-bg dialogpopup-bg background" box-anchor="fill" width="20" height="20"/>
+    <g class="dialog-layout" box-anchor="fill" layout="flex" flex-direction="column">
+      <text class="window-title dialogpopup-title" box-anchor="left"></text>
+      <g class="body-container" box-anchor="fill" layout="flex" flex-direction="column">
+      </g>
+      <g class="button-container dialog-buttons" box-anchor="hfill" layout="flex" flex-direction="row">
       </g>
     </g>
   </svg>

@@ -321,6 +321,22 @@ public:
   Button* cancelBtn = NULL;
 };
 
+// Dialog shown at the center of the screen (unsaved changes, preferences, ...), drawn on the same
+//  surface as ArrowPopup - rounded, outlined panel - but without the arrow and with roomier padding.
+//  All the spacing lives in these statics so it can be tweaked for every such dialog at once.
+class PopupDialog : public Dialog
+{
+public:
+  PopupDialog(SvgDocument* n);
+
+  static real PADDING;  // between the panel edge and its contents
+  static real TITLE_GAP;  // below the title
+  static real BUTTON_GAP;  // above the button row
+};
+
+SvgDocument* createPopupDialogNode(bool reversebtns = PLATFORM_MOBILE);
+PopupDialog* createPopupDialog(const char* title);
+
 // singleton for managing tooltips
 class Tooltips
 {

@@ -1750,6 +1750,48 @@ Dialog* createDialog(const char* title, const SvgNode* icon)
   return dialog;
 }
 
+// roomier than ArrowPopup's 8: a centered dialog is a surface of its own rather than a list of rows
+real PopupDialog::PADDING = 24;
+real PopupDialog::TITLE_GAP = 16;
+real PopupDialog::BUTTON_GAP = 20;
+
+PopupDialog::PopupDialog(SvgDocument* n) : Dialog(n)
+{
+  Widget* layout = selectFirst(".dialog-layout");
+  if(layout)
+    layout->setMargins(PADDING);
+  // the gap below the title goes on the body rather than the title itself, whose margin is fixed by CSS
+  Widget* body = selectFirst(".body-container");
+  if(body)
+    body->setMargins(TITLE_GAP, 0, 0, 0);
+  Widget* buttons = selectFirst(".dialog-buttons");
+  if(buttons)
+    buttons->setMargins(BUTTON_GAP, 0, 0, 0);
+  // same corner rounding as ArrowPopup; its background is a generated path (because of the arrow),
+  //  ours is a plain rect, so the radius goes on as a layout attribute instead
+  Widget* bg = selectFirst(".dialogpopup-bg");
+  if(bg)
+    bg->node->setAttribute("border-radius", fstring("%g", 0.5*toolIconSize()).c_str());
+}
+
+SvgDocument* createPopupDialogNode(bool reversebtns)
+{
+  SvgDocument* node = setupWindowNode(static_cast<SvgDocument*>(widgetNode("#popupdialog")));
+  if(reversebtns) {
+    SvgNode* btnnode = node->selectFirst(".dialog-buttons");
+    if(btnnode)
+      btnnode->setAttribute("flex-direction", "row-reverse");
+  }
+  return node;
+}
+
+PopupDialog* createPopupDialog(const char* title)
+{
+  PopupDialog* dialog = new PopupDialog(createPopupDialogNode());
+  dialog->setTitle(title);
+  return dialog;
+}
+
 SvgDocument* createWindowNode(const char* svg)
 {
   return setupWindowNode(SvgParser().parseString(svg));
