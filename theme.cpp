@@ -24,7 +24,7 @@ svg.window  /* :root */
   --text-bg: #000000;
   --icon: #CDCDCD;
   --icon-disabled: #808080;
-  --canvas: #444444;  /* area around page - also used by ScribbleArea::BACKGROUND_COLOR */
+  --canvas: #333333;  /* area around page - also used by ScribbleArea::BACKGROUND_COLOR */
   --panel-outline: #ACACAC;
   --panel-outline-width: 1;
   --on-dark-surface: #202020;  /* color picker: swatch ring, tab bar bg, hex input bg */
@@ -119,7 +119,12 @@ text.disabled { fill: var(--light); }
 /* TODO: combine toolbutton and menuitem styles */
 .toolbar { fill: var(--dark); }
 .toolbar.graybar { fill: var(--light); }
-.toolbar.statusbar .toolbar-bg { fill-opacity: 0.75; }
+/* toolbars carry the same outline as a popup, so a bar reads as its own surface against the canvas */
+.toolbar-bg { stroke: var(--panel-outline); stroke-width: var(--panel-outline-width); }
+/* rect.background below asks for crispEdges, which would leave the rounded corners jagged; naming both
+   of the rect's classes here outranks it (rules are applied by CSS specificity) */
+.toolbar-bg.background { shape-rendering: auto; }
+.toolbar.statusbar .toolbar-bg { fill-opacity: 0.75; stroke-opacity: 0.75; }
 /* round color/thickness swatches (pen options row): the mockup rings each swatch in the
    canvas color so that a black or white one still reads as a circle on the dark toolbar */
 .swatch-btn .btn-color { stroke: var(--canvas); stroke-width: 2; }
@@ -135,6 +140,18 @@ text.disabled { fill: var(--light); }
 .toolbutton.checked > g > .icon { fill: var(--title); color: var(--title); }  /* highlight ... was #0000C0 */
 
 .toolbutton.checked.once > g > .icon { fill: var(--title); }  /* non-sticky; between pressed and checked */
+
+/* the swatch prototypes (pen thickness, eraser radius) put .icon directly in the button instead of in
+   the icon/title row the toolbutton prototype uses, so the > g > rules above never matched them and a
+   selected thickness stayed gray.  Only `color` is set, never `fill`: these icons are strokes with
+   fill="none", and CSS outranks presentation attributes here, so filling them would blot out the
+   color swatch's selection ring. */
+.swatch-btn.hovered > .icon { color: var(--hovered-icon); }
+.swatch-btn.pressed > .icon { color: var(--pressed-icon); }
+.swatch-btn.checked > .icon { color: var(--title); }
+/* same omission in the roomier (non-compact) pen toolbar, where the thickness preset is a framed
+   preview rather than a toolbutton: its frame is the only part drawn in the icon color */
+.previewbtn.checked { color: var(--title); }
 
 .arrowpopup { fill: var(--dark); }
 .arrowpopup-bg { stroke: var(--panel-outline); stroke-width: var(--panel-outline-width); }
