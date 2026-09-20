@@ -152,6 +152,11 @@ text.disabled { fill: var(--light); }
 /* same omission in the roomier (non-compact) pen toolbar, where the thickness preset is a framed
    preview rather than a toolbutton: its frame is the only part drawn in the icon color */
 .previewbtn.checked { color: var(--title); }
+/* theme gallery tile (ThemeDialog): a tile is a picture of a page and has no .icon for the rules
+   above to tint, so the selected one is ringed in the active-icon color instead.  Hidden rather than
+   recolored when unchecked - an always-drawn ring in the panel color reads as a border on the page. */
+.themetile .theme-sel { display: none; }
+.themetile.checked .theme-sel { display: block; stroke: var(--checked); }
 
 .arrowpopup { fill: var(--dark); }
 .arrowpopup-bg { stroke: var(--panel-outline); stroke-width: var(--panel-outline-width); }

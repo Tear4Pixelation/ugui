@@ -678,6 +678,68 @@ ArrowPopup* createArrowPopup(int align)
   return new ArrowPopup(widgetNode("#arrowpopup"), align);
 }
 
+// attach an ArrowPopup to a button as its dropdown menu - the popup equivalent of Button::setMenu(), used
+//  so that a split button's dropdown gets the same chrome as the overflow menu.  ArrowPopup is not a Menu,
+//  so Button::mMenu can't hold it and the press/hover handling plus the outside-press bookkeeping Menu does
+//  in its constructor are reproduced here
+void setupPopupMenu(Button* btn, ArrowPopup* popup)
+{
+  if(!popup->parent())
+    btn->addWidget(popup);  // popup must be a child of the button to be positioned relative to it
+  btn->mPopup = popup;
+
+  if(btn->node->hasClass("menuitem")) {
+    // inside an open menu or popup the dropdown is a submenu, so it opens on hover like any other submenu
+    btn->addHandler([btn, popup](SvgGui* gui, SDL_Event* event){
+      if(event->type == SvgGui::ENTER && !popup->isVisible()) {
+        gui->closeMenus(btn);  // close sibling submenu, if any, but not the menu holding this row
+        gui->showMenu(popup);
+        btn->node->addClass("pressed");  // removed by closeMenus(), which unpresses the popup's parent
+      }
+      return false;  // continue to Button handler
+    });
+    return;
+  }
+
+  // same as the OUTSIDE_PRESSED/OUTSIDE_MODAL handling in Menu's constructor: close the whole tree on a
+  //  press outside it, except that with autoClose a release back over the opening button is replayed on
+  //  it - that is what makes a split button's main action still fire on a plain tap
+  popup->isPressedGroupContainer = true;
+  popup->addHandler([popup](SvgGui* gui, SDL_Event* event){
+    if(event->type == SvgGui::OUTSIDE_PRESSED) {
+      Widget* target = static_cast<Widget*>(event->user.data2);
+      if(!target || !target->isDescendantOf(popup->parent()))
+        gui->closeMenus(popup->parent(), true);  // close entire menu tree
+      else if(popup->autoClose) {
+        gui->closeMenus(popup->parent(), true);
+        popup->parent()->sdlEvent(gui, static_cast<SDL_Event*>(event->user.data1));
+      }
+      return true;
+    }
+    if(event->type == SvgGui::OUTSIDE_MODAL)
+      gui->closeMenus(popup->parent(), true);  // close entire menu tree; note we don't swallow event
+    return false;
+  });
+
+  // added after Button's own handler, so it runs first and swallows the press - otherwise the button, not
+  //  the popup, would end up as the pressed widget and the popup would never see OUTSIDE_PRESSED
+  btn->addHandler([btn, popup](SvgGui* gui, SDL_Event* event){
+    if(event->type != SDL_FINGERDOWN || event->tfinger.fingerId != SDL_BUTTON_LMASK)
+      return false;
+    // the press that closed the popup (as an outside press) must not immediately reopen it
+    if(gui->lastClosedMenu != popup) {
+      gui->closeMenus(btn);  // close sibling menu if any
+      gui->showMenu(popup);
+      gui->setPressed(popup);
+    }
+    // do this after closeMenus, which might clear "pressed"
+    btn->node->setXmlClass(addWord(removeWord(btn->node->xmlClass(), "hovered"), "pressed").c_str());
+    if(btn->onPressed)
+      btn->onPressed();
+    return true;
+  });
+}
+
 // unlike setupPressedPopup, this is for popups that are shown/hidden explicitly (e.g. by tapping a
 //  swatch or toggle button) rather than tied to a press-and-hold target; mirrors how Menu auto-closes.
 // note: pressedWidget (set via gui->setPressed()) is unconditionally cleared by SvgGui on every
@@ -786,16 +848,20 @@ void Action::addButton(Button* btn)
   //  which case the action can only be used once)
   ASSERT(!menu || (buttons.empty() && menuActions.empty()));
   if(!menuActions.empty()) {
-    Menu* m = createMenu(Menu::VERT);
-    btn->setMenu(m);
+    // a dropdown built from menuActions uses the arrow popup chrome, so a split button's menu matches the
+    //  overflow menu and the other popup surfaces
+    ArrowPopup* popup = createArrowPopup(Menu::VERT);
+    setupPopupMenu(btn, popup);
     for(Action* a : menuActions)
-      m->addAction(a);
+      popup->addAction(a);
   }
   else
     btn->setMenu(menu);
 
   if(btn->mMenu && onTriggered)
     btn->mMenu->autoClose = true;  //  btn->isPressedGroupContainer = true;
+  if(btn->mPopup && onTriggered)
+    btn->mPopup->autoClose = true;
 
   // set button id to action name for debugging - could use Action.buttons.size() to create unique id
   btn->node->setXmlId(name.c_str());

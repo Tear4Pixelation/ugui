@@ -4,6 +4,7 @@
 
 class Button;
 class Menu;
+class ArrowPopup;
 
 class Action
 {
@@ -64,6 +65,9 @@ public:
   std::function<void()> onPressed;
   std::function<void()> onClicked;
   Menu* mMenu;
+  // dropdown with arrow popup chrome instead of a Menu (see setupPopupMenu()); ArrowPopup is not a Menu,
+  //  so it can't be held in mMenu
+  ArrowPopup* mPopup = NULL;
 
 private:
   bool m_checked;
@@ -117,6 +121,9 @@ public:
   Button* addSubmenu(const char* title, ArrowPopup* submenu);
   void addSeparator();
 
+  // as for Menu: a press back over the opening button closes the popup and triggers the button's action
+  bool autoClose = false;
+
 private:
   void updateBackground(const Rect& outer, int side, real arrowPos) const;
 
@@ -128,6 +135,8 @@ private:
 };
 
 ArrowPopup* createArrowPopup(int align);
+// attach a popup to a button as its dropdown menu - the ArrowPopup equivalent of Button::setMenu()
+void setupPopupMenu(Button* btn, ArrowPopup* popup);
 // popup is shown while target is pressed and hidden on release, like a tooltip
 void setupPressedPopup(Widget* target, ArrowPopup* popup);
 // popup closes itself when something outside it is pressed, like a Menu; must show/hide the popup via
