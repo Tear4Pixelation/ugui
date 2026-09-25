@@ -243,6 +243,12 @@ text.dialogpopup-title { fill: var(--text); font-size: 17; font-weight: bold; ma
 
 .slider-handle-outer { fill: grey; }
 .slider-handle-inner { fill: black; }
+/* the ruling region panel (MainWindow::buildRegionPanel): the spacing slider is the color picker's
+   rounded bar and caret, the caret's gap painted in the panel color; and the Background checkbox */
+.region-panel .slider-bg { fill: #4A4A4A; stroke: none; }
+.region-panel .slider-caret { fill: #FFFFFF; stroke: none; }
+.region-panel .slider-caret-gap { fill: var(--dark); stroke: none; }
+.region-panel .region-check-tick { stroke: var(--dark); }
 
 /* color picker: R/G/B/H/S/V/A gradient sliders (colorwidgets.cpp) */
 .color-slider-thumb-outer { fill: var(--dark); }
