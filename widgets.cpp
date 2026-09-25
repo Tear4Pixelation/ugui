@@ -1490,7 +1490,7 @@ ScrollWidget::ScrollWidget(SvgDocument* doc, Widget* _contents) : Widget(doc), c
       return gui->sendEvent(window(), this, event);
     }
     // allow use of modifier key to pass wheel event to underlying widget
-    bool wheelnomod = !PLATFORM_MOBILE && event->type == SDL_MOUSEWHEEL && !(event->wheel.direction >> 16);
+    bool wheelnomod = !PLATFORM_MOBILE && event->type == SDL_MOUSEWHEEL && !wheelModifiers(event);
     if(wheelnomod)
       return gui->sendEvent(window(), this, event);  // send event to ScrollWidget normally
 

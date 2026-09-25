@@ -270,6 +270,15 @@ public:
   static constexpr Uint32 LONGPRESSID = SDL_TOUCH_MOUSEID - 2;
   static constexpr Uint32 LONGPRESSALTID = SDL_TOUCH_MOUSEID - 3;
   static Uint32 longPressDelayMs;
+  // Modifier state as of the most recently *dispatched* key event, for events that carry no modifier
+  //  field of their own (the mouse wheel).  SDL_GetModState() is not usable there: it is updated when
+  //  events are pumped, not when they are handled, so a modifier released in the same pump as the
+  //  wheel event reads as already up by the time the wheel is dispatched.
+  static uint32_t keyModState;
+  // Optional platform hook to replace the integer x/y of a mouse motion or button event with a sub-pixel
+  //  position (and a pressure, for a pen reaching us as a mouse).  Returns false to keep the integers.
+  //  Set by the application; see syncscribble/linux/sdl3input.cpp for the case it exists for.
+  static bool (*subpixelHook)(const SDL_Event* event, float* x, float* y, float* pressure);
 
 //protected:
   lay_context layoutCtx;
@@ -293,3 +302,8 @@ public:
 };
 
 bool isLongPressOrRightClick(SDL_Event* event);
+// Keyboard modifiers in effect for a SDL_MOUSEWHEEL event, as KMOD_* bits.  Not simply
+//  SDL_GetModState() because on Windows Write synthesizes the wheel event itself (winhelper.cpp) and
+//  packs the modifiers into the high bits of wheel.direction; the event may be handled long enough
+//  after the fact that the live modifier state has moved on.
+uint32_t wheelModifiers(SDL_Event* event);

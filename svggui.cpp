@@ -924,6 +924,14 @@ void SvgGui::showContextMenu(Widget* menu, const Point& p, const Widget* parent_
   }
 }
 
+uint32_t wheelModifiers(SDL_Event* event)
+{
+  // Only the Windows path packs modifiers into wheel.direction; everywhere else those bits are
+  //  SDL_MOUSEWHEEL_NORMAL/FLIPPED, and FLIPPED is 1, which is KMOD_LSHIFT - so reading them off
+  //  Windows does not merely lose Ctrl and Shift, it can invent a Shift that was never held.
+  return PLATFORM_WIN ? (event->wheel.direction >> 16) : SvgGui::keyModState;
+}
+
 bool isLongPressOrRightClick(SDL_Event* event)
 {
   return (event->type == SvgGui::LONG_PRESS && event->tfinger.touchId == SvgGui::LONGPRESSID)
@@ -1403,6 +1411,8 @@ void SvgGui::updateGestures(SDL_Event* event)
   prevFingerPos = p;
 }
 
+uint32_t SvgGui::keyModState = 0;
+bool (*SvgGui::subpixelHook)(const SDL_Event*, float*, float*, float*) = NULL;
 Uint32 SvgGui::longPressDelayMs = 700;  // 500ms is typical value on Android (and iOS?)
 
 bool SvgGui::sdlTouchEvent(SDL_Event* event)
@@ -1562,12 +1572,30 @@ bool SvgGui::sdlMouseEvent(SDL_Event* event)
       return true;
     win = windowfromSDLID(event->motion.windowID);
     p = Point(event->motion.x, event->motion.y);
+    float sx, sy;
+    if(subpixelHook && subpixelHook(event, &sx, &sy, &pressure))
+      p = Point(sx, sy);
   }
   else if(event->type == SDL_MOUSEWHEEL) {
 #if !PLATFORM_WIN
-    // on Windows, we handle mouse wheel ourselves because SDL throws away resolution
-    event->wheel.x *= 120;
-    event->wheel.y *= 120;
+    // On Windows, we synthesize the wheel event ourselves because SDL throws away resolution; here we
+    //  have to recover it from SDL's own float fields.  Reading only the integer x/y - which is what
+    //  this did - means the wheel does nothing at all under sdl2-compat (the SDL2 API implemented on
+    //  top of SDL3, now shipped by several distributions): it leaves them 0 and reports the scroll
+    //  solely in preciseX/preciseY.  They are also the only fields with any sub-notch resolution, so
+    //  preferring them is right on plain SDL2 as well.  They arrived in SDL 2.0.18, which the wasm
+    //  build's SDL branch predates.
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+    if(event->wheel.preciseX != 0 || event->wheel.preciseY != 0) {
+      event->wheel.x = Sint32(event->wheel.preciseX*120);
+      event->wheel.y = Sint32(event->wheel.preciseY*120);
+    }
+    else
+#endif
+    {
+      event->wheel.x *= 120;
+      event->wheel.y *= 120;
+    }
 #endif
     p = prevFingerPos;
     win = event->wheel.windowID ? windowfromSDLID(event->wheel.windowID) : windows.front();
@@ -1619,6 +1647,15 @@ bool SvgGui::isFocusedWidgetEvent(SDL_Event* event)
 
 bool SvgGui::sdlEvent(SDL_Event* event)
 {
+  // Track modifiers from the key events themselves, in dispatch order, so wheelModifiers() sees what
+  //  was held when the wheel event was generated rather than what is held now.  keysym.mod already
+  //  accounts for the key in hand, so a Ctrl press sets the bit and a Ctrl release clears it.
+  if(event->type == SDL_KEYDOWN || event->type == SDL_KEYUP)
+    keyModState = event->key.keysym.mod;
+  else if(event->type == SDL_WINDOWEVENT && (event->window.event == SDL_WINDOWEVENT_FOCUS_GAINED
+      || event->window.event == SDL_WINDOWEVENT_FOCUS_LOST))
+    keyModState = SDL_GetModState();  // key releases that happened elsewhere were never delivered here
+
   if(event->type == SDL_FINGERDOWN || event->type == SDL_FINGERMOTION
       || event->type == SDL_FINGERUP || event->type == SVGGUI_FINGERCANCEL)
     return sdlTouchEvent(event);
