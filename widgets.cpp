@@ -477,10 +477,10 @@ ArrowPopup::ArrowPopup(SvgNode* n, int align) : AbsPosWidget(n)
   //  stale layout transform on it that corrupts the freshly generated path)
   bgWidget->onApplyLayout = [](const Rect&, const Rect&){ return true; };
   contentWidget = selectFirst(".child-container");
-  // popup content padding, uniform on all four sides and matching the inset menu items use inside a
-  //  Menu (see the .arrowpopup rules in theme.cpp, which drop that per-item inset so the two agree);
-  //  the arrow side gets arrowSize added outside this padding in calcOffset()
-  contentWidget->setMargins(8);
+  // popup content padding: 8 top/bottom, matching the inset menu items use inside a Menu (see the
+  //  .arrowpopup rules in theme.cpp, which drop that per-item inset so the two agree), and double that
+  //  left/right; the arrow side gets arrowSize added outside this padding in calcOffset()
+  contentWidget->setMargins(8, 16);
 
   setAlign(align);
   addHandler([this](SvgGui* gui, SDL_Event* event){

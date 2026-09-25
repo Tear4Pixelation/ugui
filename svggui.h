@@ -83,6 +83,11 @@ public:
   //  (i.e. sets onPrepareLayout), that means the container can end up smaller than the widget's contents.
   //  Set this flag to report the measured size to layout while still stretching to fill.
   bool fillReportsSize = false;
+  // Hit testing (SvgGui::widgetAt) treats a container as hit anywhere inside its bounding box, even
+  //  where none of its children are.  Set this on a pure layout container, or an invisible spacer, that
+  //  overlays other content - e.g. a row of floating panels over a canvas - so a press on its empty
+  //  space goes to whatever is underneath; its descendants are still hit normally.
+  bool hitTransparent = false;
 
 //private:
   //Dim maxWidth = 0;  // only for abs pos nodes and/or flex wrap containers

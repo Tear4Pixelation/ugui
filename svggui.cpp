@@ -1327,6 +1327,33 @@ Widget* SvgGui::findNextFocusable(Widget* parent, Widget* curr, bool reverse)
   return NULL;
 }
 
+// true if the widget owning `node` (the nearest ancestor-or-self with a Widget) is Widget::hitTransparent
+static bool isHitTransparent(SvgNode* node)
+{
+  while(node && !node->hasExt())
+    node = node->parent();
+  return node && static_cast<Widget*>(node->ext())->hitTransparent;
+}
+
+// SvgContainerNode::nodeAt(p, false), except that nodes owned by a hitTransparent widget are never
+//  returned - so a press on the empty part of such a container falls through to what is beneath it
+static SvgNode* hitNodeAt(SvgContainerNode* container, const Point& p)
+{
+  for(auto it = container->children().crbegin(); it != container->children().crend(); ++it) {
+    SvgNode* child = *it;
+    if(!child->isVisible() || !child->bounds().contains(p))
+      continue;
+    if(child->asContainerNode()) {
+      SvgNode* hit = hitNodeAt(child->asContainerNode(), p);
+      if(hit)
+        return hit;
+    }
+    else if(!isHitTransparent(child))
+      return child;
+  }
+  return container->bounds().contains(p) && !isHitTransparent(container) ? container : NULL;
+}
+
 Widget* SvgGui::widgetAt(Window* win, Point p)
 {
   // absolutely positioned nodes may extend outside the bounds of the window (e.g. combo menu in modal)
@@ -1335,7 +1362,7 @@ Widget* SvgGui::widgetAt(Window* win, Point p)
     Widget* w = *ii;
     if(w->node->isVisible()) {
       if(w->containerNode())
-        node = w->containerNode()->nodeAt(p, false);
+        node = hitNodeAt(w->containerNode(), p);
       else
         node = w->node->bounds().contains(p) ? node : NULL;
     }
@@ -1343,7 +1370,7 @@ Widget* SvgGui::widgetAt(Window* win, Point p)
 
   // visual_only = false; alternative would be to first call with true, then w/ false if NULL result
   if(!node && win->winBounds().contains(p + win->winBounds().origin()))
-    node = win->containerNode()->nodeAt(p, false);  //documentNode()
+    node = hitNodeAt(win->containerNode(), p);  //documentNode()
   //if(node) {
   //  Rect r = node->bounds();
   //  PLATFORM_LOG("widgetAt %.2f %.2f %s (ltrb: %.0f %.0f %.0f %.0f)\n", p.x, p.y,

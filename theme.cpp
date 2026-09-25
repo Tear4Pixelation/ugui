@@ -289,6 +289,72 @@ rect.background { shape-rendering: crispEdges; }
 .menu, .dialog { box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.5); }
 /*.menu, .dialog { box-shadow: 0px 0px 40px 0px rgba(0,0,0,0.40); }*/ /* like android, but doesn't look great on computer */
 /*.menu, .dialog { box-shadow: 6px 6px 4px -4px rgba(0,0,0,0.375); }*/ /* offset shadow like Windows */
+
+/* tag sidebar document browser (tagdoclist.cpp) - the redesign's two typefaces: Raleway for the
+   "Write" wordmark, Satoshi for everything else. Set once on the window root since font-family
+   inherits, rather than repeating it on every text node. */
+.tagdoclist { font-family: satoshi; }
+.tagdoclist .doclist-title { font-family: raleway; font-size: 32; fill: var(--text); }
+.tagdoclist .sidebar { fill: var(--dark); }
+.tagdoclist .doclist-content { fill: #000000; }
+/* the sidebar's own bottom toolbars (undo bar, tag actions) sit directly on the sidebar's own dark
+   background, not on a separate toolbar surface - the default .toolbar fill and .toolbar-bg outline
+   read as a stray box around them, so both are switched off within this window only */
+.tagdoclist .toolbar { fill: none; }
+.tagdoclist .toolbar-bg { stroke: none; fill: none; }
+/* the search boxes' rounded fill *is* the TextEdit's own background (sized to the text, not a
+   separate larger rect behind it) - rounded always, with a rounded focus ring instead of the
+   default square one */
+.tagdoclist .inputbox { fill: none; }
+.tagdoclist .inputbox-bg { fill: #444444; stroke: none; border-radius: 10; }
+.tagdoclist .inputbox.focused .inputbox-bg { stroke: var(--icon); stroke-width: 2; }
+/* document cards carry their own thumbnail/paper color; the default .listitem fill behind them just
+   reads as an unwanted card background */
+.tagdoclist .doc-cell { fill: none; }
+.tag-row { fill: none; }
+.tag-row > g > .title { fill: var(--text); }
+/* hovering a tag colors its label/icon only, like a plain toolbutton (All Documents) - it must not
+   light up a background rect the way a normal list item would.
+   Direct-child chains (matching the existing .toolbutton.checked > g > .icon rule), not descendant
+   selectors: an ArrowPopup opened from a row (see showTagMenu()) is added as a literal DOM child of
+   that row for positioning, and its own .title/.icon elements are genuine descendants of
+   .tag-row.checked too - a bare ".tag-row.checked .title" bled this row's checked/hovered color into
+   whatever popup happened to be open on it. */
+.tag-row.hovered > g > .title { fill: var(--hovered-text); }
+.tag-row.hovered > g > .icon-container > .icon { fill: var(--hovered-icon); color: var(--hovered-icon); }
+.tag-row.pressed > g > .title { fill: var(--pressed-text); }
+.tag-row.pressed > g > .icon-container > .icon { fill: var(--pressed-icon); color: var(--pressed-icon); }
+.tag-row.checked > g > .title { fill: var(--checked); }
+.tag-row.checked > g > .icon-container > .icon { fill: var(--checked); color: var(--checked); }
+
+/* general-purpose sidebar (sidebar.cpp / SIDEBAR_SPEC.md).  Colors are literals from the Penpot
+   file rather than theme variables, exactly as the floating toolbar panels are: this panel is part
+   of that same dark floating chrome, which does not follow the document's light/dark theme. */
+.gp-sidebar { font-family: satoshi; }
+/* outlined like .toolbar-bg, so the sidebar reads as the same kind of surface as the toolbar above it */
+.gp-sidebar .panel-bg { fill: #101010; stroke: var(--panel-outline); stroke-width: var(--panel-outline-width); }
+.gp-sidebar .field-bg { fill: #444444; stroke: none; }
+.gp-sidebar .sb-view-label { fill: #CDCDCD; }
+.gp-sidebar .sb-title { fill: #F2F2F2; }
+.gp-sidebar .sb-sub { fill: #CDCDCD; }
+.gp-sidebar .sb-preview { fill: #B1B2B5; stroke: none; }
+/* rows are transparent; only their text reacts, like a tag row rather than a list item */
+.gp-sidebar .sb-row, .gp-sidebar .sb-row-sizer, .gp-sidebar .sb-actions-sizer { fill: none; }
+/* the pinned sidebar owns its whole column; its margins are painted as canvas surround rather than
+   left showing whatever the canvas drew there before it shrank */
+.gp-sidebar .sb-backfill { fill: var(--canvas); stroke: none; }
+.gp-sidebar .sb-row.hovered > g > .sb-title { fill: var(--hovered-text); }
+.gp-sidebar .sb-row.pressed > g > .sb-title { fill: var(--pressed-text); }
+/* the current layer, per the design's blue label */
+.gp-sidebar .sb-row.checked > g > .sb-title { fill: #2EA3CF; }
+/* an unlocked layer still offers its lock, dimmed - the design draws the icon on locked rows only */
+.gp-sidebar .sb-lock-off .icon { opacity: 0.35; }
+/* the search box's rounded fill is the row's own .field-bg, so the TextEdit contributes no chrome.
+   border-radius is still set because the base .inputbox.focused rule (two classes, so more specific
+   than this one) puts a stroke back on while the field has focus - without a radius here that focus
+   ring is drawn square around a rounded field. */
+.gp-sidebar .inputbox, .gp-sidebar .inputbox-bg { fill: none; stroke: none; border-radius: 6; }
+.gp-sidebar .toolbar, .gp-sidebar .toolbar-bg { fill: none; stroke: none; }
 )#";
 
 // document containing prototypes for widgets; identified by SVG class

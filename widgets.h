@@ -56,7 +56,13 @@ public:
 
   void setTitle(const char* title) { selectFirst(".title")->setText(title); }
   void setShowTitle(bool show) { selectFirst(".title")->setVisible(show); }
-  void setIcon(const SvgNode* icon) { static_cast<SvgUse*>(selectFirst(".icon")->node)->setTarget(icon); }
+  // node->selectFirst(), not the Widget-wrapping selectFirst(): the latter permanently attaches a
+  // bare, handler-less Widget to whatever node it hits (see Widget::selectFirst), and since we only
+  // want the raw node here, that stray Widget would sit on the icon forever. Worse than a leak: once
+  // planted, SvgGui::widgetAt()'s "first parent with a Widget set" walk stops right there, before
+  // ever reaching this Button - so a press squarely on an icon-only button's glyph (its whole hit
+  // area) resolves to that dead handler-less Widget and the button never receives its own click.
+  void setIcon(const SvgNode* icon) { static_cast<SvgUse*>(node->selectFirst(".icon"))->setTarget(icon); }
   void setMenu(Menu* m);
   bool checked() const { return m_checked; }
   bool isChecked() const { return m_checked; }  // pick one...
