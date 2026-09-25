@@ -1557,12 +1557,16 @@ bool SvgGui::sdlMouseEvent(SDL_Event* event)
 {
   Point p(NaN, NaN);
   Window* win = NULL;
+  float pressure = 1;
   // keep button down and up separate for now for easier debugging (i.e. setting breakpoints)
   if(event->type == SDL_MOUSEBUTTONDOWN || event->type == SDL_MOUSEBUTTONUP) {
     if(event->button.which == SDL_TOUCH_MOUSEID)
       return true;
     win = windowfromSDLID(event->button.windowID);
     p = Point(event->button.x, event->button.y);
+    float sx, sy;
+    if(subpixelHook && subpixelHook(event, &sx, &sy, &pressure))
+      p = Point(sx, sy);
     // button up outside window should be an "OUTSIDE_PRESSED" event
     if(!win && pressedWidget && event->type == SDL_MOUSEBUTTONUP)
       return sendEventFilt(pressedWidget->window(), pressedWidget->window(), event);
