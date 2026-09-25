@@ -1415,7 +1415,7 @@ ScrollWidget::ScrollWidget(SvgDocument* doc, Widget* _contents) : Widget(doc), c
       enterEventSent = false;
       gui->setTimer(150, this, [this, gui](){
         if(gui->pressedWidget == this && tappedWidget) {  //gui->fingerClicks > 0) {
-          SDL_Event enterleave = {0};
+          SDL_Event enterleave = {};
           enterleave.type = SvgGui::ENTER;
           enterleave.user.timestamp = gui->pressEvent.common.timestamp;
           enterleave.user.data1 = &gui->pressEvent;
@@ -1646,7 +1646,7 @@ void ScrollWidget::cleanup(SvgGui* gui, SDL_Event* event)
   testPassThru = false;
   gui->removeTimers(this);
   if(enterEventSent) {
-    SDL_Event enterleave = {0};
+    SDL_Event enterleave = {};
     enterleave.type = SvgGui::LEAVE;
     enterleave.user.timestamp = event->common.timestamp;
     enterleave.user.data1 = event;

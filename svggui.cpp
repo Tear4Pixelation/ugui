@@ -448,7 +448,7 @@ bool Widget::sdlEvent(SvgGui* gui, SDL_Event* event)
 // send a SDL event directly to a widget (without going through event queue)
 bool Widget::sdlUserEvent(SvgGui* gui, Uint32 type, Sint32 code, void* data1, void* data2)
 {
-  SDL_Event event = {0};
+  SDL_Event event = {};
   event.type = type;
   event.user.code = code;
   event.user.timestamp = SDL_GetTicks();
@@ -521,7 +521,7 @@ SvgGui::~SvgGui()
 // add an SDL event to the global event queue
 void SvgGui::pushUserEvent(Uint32 type, Sint32 code, void* data1, void* data2)
 {
-  SDL_Event event = {0};
+  SDL_Event event = {};
   event.type = type;
   event.user.code = code;
   event.user.timestamp = SDL_GetTicks();
@@ -544,7 +544,7 @@ static int timerThreadFn(void* _self)
     int64_t dt = self->nextTimeout - mSecSinceEpoch();
     if(dt < 0 || !self->timerSem.waitForMsec(dt)) {
       //SvgGui::pushUserEvent(SvgGui::TIMER, 0)
-      SDL_Event event = {0};
+      SDL_Event event = {};
       event.type = SvgGui::TIMER;
       event.user.timestamp = SDL_GetTicks();  // self->nextTimeout???
       SDL_PushEvent(&event);
@@ -1110,7 +1110,7 @@ void SvgGui::hoveredLeave(Widget* widget, Widget* topWidget, SDL_Event* event)
   if(!hoveredWidget || widget == hoveredWidget)
     return;
   // create user event
-  SDL_Event enterleave = {0};
+  SDL_Event enterleave = {};
   enterleave.type = LEAVE;
   enterleave.user.timestamp = event ? event->common.timestamp : SDL_GetTicks();
   enterleave.user.data1 = event;
@@ -1474,7 +1474,7 @@ bool SvgGui::sdlTouchEvent(SDL_Event* event)
       // most widgets completely ignore multitouch (second finger down is equivalent to canceling input), and
       //  most uses of multitouch need to process all touch points, so use a special event type for multitouch
       //  that includes all points and that other widgets can ignore
-      SDL_Event mtevent = {0};
+      SDL_Event mtevent = {};
       mtevent.type = MULTITOUCH;
       mtevent.user.timestamp = event->tfinger.timestamp;
       mtevent.user.data1 = event;
@@ -1516,7 +1516,7 @@ bool SvgGui::sdlTouchEvent(SDL_Event* event)
     // start long press timer; we set a custom event type but use the SDL_Event.button struct
     //  setting timer widget to win ensures that timer will be removed if Window is closed
     longPressTimer = setTimer(longPressDelayMs, win, longPressTimer, [this, win, widget, p]() {
-      SDL_Event longpress = {0};
+      SDL_Event longpress = {};
       longpress.type = LONG_PRESS;
       longpress.tfinger.timestamp = SDL_GetTicks();
       // if widget under touch point has changed, we send SVG_GUI_LONGPRESSALTID, which in most cases should
@@ -1590,12 +1590,12 @@ bool SvgGui::sdlMouseEvent(SDL_Event* event)
   p = p*inputScale - win->winBounds().origin();
 #endif
   // convert to tfinger event
-  SDL_Event fevent = {0};
+  SDL_Event fevent = {};
   fevent.tfinger.timestamp = event->common.timestamp;
   fevent.tfinger.touchId = SDL_TOUCH_MOUSEID;
   fevent.tfinger.x = p.x;
   fevent.tfinger.y = p.y;
-  fevent.tfinger.pressure = 1;
+  fevent.tfinger.pressure = pressure;
 
   if(event->type == SDL_MOUSEBUTTONDOWN || event->type == SDL_MOUSEBUTTONUP) {
     fevent.tfinger.type = event->type == SDL_MOUSEBUTTONDOWN ? SDL_FINGERDOWN : SDL_FINGERUP;
@@ -1694,7 +1694,7 @@ bool SvgGui::sendEvent(Window* win, Widget* widget, SDL_Event* event)
       if(!widget || (topWidget && !widget->isDescendantOf(topWidget)))
         hoveredWidget = NULL;
       else {
-        SDL_Event enterleave = {0};
+        SDL_Event enterleave = {};
         enterleave.type = ENTER;
         enterleave.user.timestamp = event->common.timestamp;
         enterleave.user.data1 = event;
@@ -1786,7 +1786,11 @@ Rect SvgGui::layoutAndDraw(Painter* painter)
       windirty.rectUnion(win->m_shadow->bounds(win->node->m_renderedBounds));
     }
 
-    for(AbsPosWidget* w : win->absPosNodes) {
+    // by index, not range-for: laying out one of these can show or hide another - a TextEdit in a popup
+    //  shows its selection handles from its layout - and setVisible() adds to or removes from this vector,
+    //  which reallocates it under an iterator.  Widgets appended here are laid out in this same pass
+    for(size_t i = 0; i < win->absPosNodes.size(); ++i) {
+      AbsPosWidget* w = win->absPosNodes[i];
       SvgNode* parentnode = w->node->parent();
       if(parentnode->bounds() != parentnode->m_renderedBounds)
         layoutDirtyRoot = w;
