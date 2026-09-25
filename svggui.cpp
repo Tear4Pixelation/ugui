@@ -567,7 +567,7 @@ Timer* SvgGui::setTimer(int msec, Widget* widget, const std::function<int()>& ca
 {
   ASSERT(msec > 0);
 #if PLATFORM_EMSCRIPTEN
-//#error "Don't forget to fix this"
+  // no threads: the app's main loop, which runs once per frame, posts TIMER when nextTimeout passes
 #else
   if(!timerThread)
     timerThread.reset(new std::thread(timerThreadFn, (void*)this));
