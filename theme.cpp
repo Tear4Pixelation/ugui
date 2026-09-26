@@ -106,6 +106,7 @@ const char* defaultStyleCSS = R"#(
 /* stroked paths in icons use stroke="currentColor" for now */
 .icon { fill: var(--icon); color: var(--icon); }
 .disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
+.toolbutton.disabled > g > .title { fill: var(--icon-disabled); }
 
 /* set default font-size at top-level instead of every <text> */
 .window { font-size: 15; }
@@ -293,6 +294,9 @@ rect.background { shape-rendering: crispEdges; }
 /*rect.inputbox-bg { shape-rendering: crispEdges; }  -- problem because this applies to stroke too */
 
 .menu, .dialog { box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.5); }
+/* the selection popup is a rounded floating panel (12*floatUIScale corners, mainwindow.cpp): its shadow
+   follows those corners and falls below it, pulled in by the spread so it does not ring the top edge */
+.menu.sel-popup { box-shadow: 0px 3px 8px -2px rgba(0,0,0,0.45); border-radius: 6; }
 /*.menu, .dialog { box-shadow: 0px 0px 40px 0px rgba(0,0,0,0.40); }*/ /* like android, but doesn't look great on computer */
 /*.menu, .dialog { box-shadow: 6px 6px 4px -4px rgba(0,0,0,0.375); }*/ /* offset shadow like Windows */
 
