@@ -650,20 +650,38 @@ Button* ArrowPopup::addSubmenu(const char* title, Menu* submenu)
 }
 
 // a popup submenu can't go through Button::setMenu() (which only takes a Menu), so the open-on-hover and
-//  close-siblings behavior of setupMenuItem() is reproduced here for the popup
+//  close-siblings behavior of setupMenuItem() is reproduced here for the popup.  It must also open on press:
+//  without a hover (pen or finger on a tablet) the press is the only event, and Button's own press handling
+//  calls closeMenus(row), which would close the submenu the ENTER preceding the press just opened - so the
+//  press is handled here instead and never reaches Button
+static void setupPopupSubmenuRow(Button* row, Widget* submenu)
+{
+  row->addHandler([row, submenu](SvgGui* gui, SDL_Event* event){
+    bool isPress = event->type == SDL_FINGERDOWN && event->tfinger.fingerId == SDL_BUTTON_LMASK;
+    if((event->type == SvgGui::ENTER || isPress) && !submenu->isVisible()) {
+      gui->closeMenus(row);  // close sibling submenu, if any, but not the menu holding this row
+      gui->showMenu(submenu);
+      row->node->addClass("pressed");  // removed by closeMenus(), which unpresses the submenu's parent
+    }
+    if(isPress) {
+      gui->closeMenus(submenu);  // close only the submenu's own submenus, if any
+      gui->setPressed(row);
+      return true;
+    }
+    // Button would remove "pressed" on release since it has no mMenu, unhighlighting the row of an open
+    //  submenu; a split button's row (Action::addButton) still needs the release for its main action
+    if(event->type == SDL_FINGERUP && event->tfinger.fingerId == SDL_BUTTON_LMASK && !row->onClicked)
+      return true;
+    return false;  // continue to Button handler
+  });
+}
+
 Button* ArrowPopup::addSubmenu(const char* title, ArrowPopup* submenu)
 {
   Button* item = new Button(widgetNode("#menuitem-submenu"));
   item->selectFirst(".title")->setText(title);
   item->addWidget(submenu);  // submenu is positioned relative to its parent, i.e. this row
-  item->addHandler([item, submenu](SvgGui* gui, SDL_Event* event){
-    if(event->type == SvgGui::ENTER && !submenu->isVisible()) {
-      gui->closeMenus(item);  // close sibling submenu, if any, but not the popup holding this row
-      gui->showMenu(submenu);
-      item->node->addClass("pressed");  // removed by closeMenus(), which unpresses the submenu's parent
-    }
-    return false;  // continue to Button handler
-  });
+  setupPopupSubmenuRow(item, submenu);
   addWidget(item);
   return item;
 }
@@ -689,15 +707,8 @@ void setupPopupMenu(Button* btn, ArrowPopup* popup)
   btn->mPopup = popup;
 
   if(btn->node->hasClass("menuitem")) {
-    // inside an open menu or popup the dropdown is a submenu, so it opens on hover like any other submenu
-    btn->addHandler([btn, popup](SvgGui* gui, SDL_Event* event){
-      if(event->type == SvgGui::ENTER && !popup->isVisible()) {
-        gui->closeMenus(btn);  // close sibling submenu, if any, but not the menu holding this row
-        gui->showMenu(popup);
-        btn->node->addClass("pressed");  // removed by closeMenus(), which unpresses the popup's parent
-      }
-      return false;  // continue to Button handler
-    });
+    // inside an open menu or popup the dropdown is a submenu, so it opens on hover or press like any other
+    setupPopupSubmenuRow(btn, popup);
     return;
   }
 
