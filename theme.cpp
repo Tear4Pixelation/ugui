@@ -33,6 +33,15 @@ svg.window  /* :root */
   --popup-item-checked: #32809C;
   --popup-item-radius: 8;
   --popup-separator: #383838;
+  /* document browser (tagdoclist.cpp) */
+  --doclist-bg: #000000;  /* the document grid, behind the cards */
+  --doclist-field: #444444;  /* search boxes and the small FABs */
+  --fab-primary-icon: #CDCDCD;  /* icon on the accent-colored New Document FAB */
+  --floating-bg: #2A2A2A;  /* select mode's floating bar */
+  --floating-outline: #444444;
+  --floating-separator: #555555;
+  --floating-hovered: #444444;
+  --floating-pressed: #555555;
 }
 
 /* light theme */
@@ -62,6 +71,14 @@ svg.window.light
   --popup-item-hovered: #E4E4E4;
   --popup-item-checked: #B8D8F9;
   --popup-separator: #CCCCCC;
+  --doclist-bg: #E6E6E6;  /* not white: blank pages are white cards */
+  --doclist-field: #FFFFFF;
+  --fab-primary-icon: #FFFFFF;
+  --floating-bg: #FFFFFF;
+  --floating-outline: #CCCCCC;
+  --floating-separator: #CCCCCC;
+  --floating-hovered: #E4E4E4;
+  --floating-pressed: #D0D0D0;
 }
 )#";
 
@@ -306,7 +323,7 @@ rect.background { shape-rendering: crispEdges; }
 .tagdoclist { font-family: satoshi; }
 .tagdoclist .doclist-title { font-family: raleway; font-size: 32; fill: var(--text); }
 .tagdoclist .sidebar { fill: var(--dark); }
-.tagdoclist .doclist-content { fill: #000000; }
+.tagdoclist .doclist-content { fill: var(--doclist-bg); }
 /* the sidebar's own bottom toolbars (undo bar, tag actions) sit directly on the sidebar's own dark
    background, not on a separate toolbar surface - the default .toolbar fill and .toolbar-bg outline
    read as a stray box around them, so both are switched off within this window only */
@@ -316,11 +333,15 @@ rect.background { shape-rendering: crispEdges; }
    separate larger rect behind it) - rounded always, with a rounded focus ring instead of the
    default square one */
 .tagdoclist .inputbox { fill: none; }
-.tagdoclist .inputbox-bg { fill: #444444; stroke: none; border-radius: 10; }
+.tagdoclist .inputbox-bg { fill: var(--doclist-field); stroke: none; border-radius: 10; }
 .tagdoclist .inputbox.focused .inputbox-bg { stroke: var(--icon); stroke-width: 2; }
 /* document cards carry their own thumbnail/paper color; the default .listitem fill behind them just
    reads as an unwanted card background */
 .tagdoclist .doc-cell { fill: none; }
+/* the FABs (TagDocList::createFab()): the small ones sit on the grid like the search boxes do */
+.tagdoclist .fab-bg { fill: var(--doclist-field); }
+.tagdoclist .fab-primary .fab-bg { fill: #2EA3CF; }
+.tagdoclist .fab-primary .icon { fill: var(--fab-primary-icon); color: var(--fab-primary-icon); }
 /* select mode (TagDocList::setSelectMode()): a ring and a check badge on each document; the badge is
    an empty circle until the cell is checked.  The bar replacing the FABs is one rounded container
    around FAB-sized buttons that light up only when hovered or pressed. */
@@ -330,12 +351,12 @@ rect.background { shape-rendering: crispEdges; }
 .tagdoclist .doc-cell.checked .select-badge-bg { fill: #2EA3CF; fill-opacity: 1; stroke: #2EA3CF; }
 .tagdoclist .select-check { display: none; }
 .tagdoclist .doc-cell.checked .select-check { display: block; fill: #FFFFFF; color: #FFFFFF; }
-.tagdoclist .selectbar-bg { fill: #2A2A2A; stroke: #444444; stroke-width: 1; }
+.tagdoclist .selectbar-bg { fill: var(--floating-bg); stroke: var(--floating-outline); stroke-width: 1; }
 .tagdoclist .selectbar-count { fill: var(--text); font-size: 15; }
-.tagdoclist .selectbar-sep { fill: #555555; }
+.tagdoclist .selectbar-sep { fill: var(--floating-separator); }
 .tagdoclist .selectbar-btn-bg { fill: none; }
-.tagdoclist .selectbar-btn.hovered .selectbar-btn-bg { fill: #444444; }
-.tagdoclist .selectbar-btn.pressed .selectbar-btn-bg { fill: #555555; }
+.tagdoclist .selectbar-btn.hovered .selectbar-btn-bg { fill: var(--floating-hovered); }
+.tagdoclist .selectbar-btn.pressed .selectbar-btn-bg { fill: var(--floating-pressed); }
 .tagdoclist .selectbar-btn.disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
 .tagdoclist .selectbar-delete .icon { fill: #E5534B; color: #E5534B; }
 .tagdoclist .selectbar-delete.disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
