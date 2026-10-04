@@ -321,6 +321,24 @@ rect.background { shape-rendering: crispEdges; }
 /* document cards carry their own thumbnail/paper color; the default .listitem fill behind them just
    reads as an unwanted card background */
 .tagdoclist .doc-cell { fill: none; }
+/* select mode (TagDocList::setSelectMode()): a ring and a check badge on each document; the badge is
+   an empty circle until the cell is checked.  The bar replacing the FABs is one rounded container
+   around FAB-sized buttons that light up only when hovered or pressed. */
+.tagdoclist .select-ring { display: none; fill: none; stroke: #2EA3CF; stroke-width: 3; }
+.tagdoclist .doc-cell.checked .select-ring { display: block; }
+.tagdoclist .select-badge-bg { fill: #000000; fill-opacity: 0.45; stroke: #FFFFFF; stroke-width: 1.5; }
+.tagdoclist .doc-cell.checked .select-badge-bg { fill: #2EA3CF; fill-opacity: 1; stroke: #2EA3CF; }
+.tagdoclist .select-check { display: none; }
+.tagdoclist .doc-cell.checked .select-check { display: block; fill: #FFFFFF; color: #FFFFFF; }
+.tagdoclist .selectbar-bg { fill: #2A2A2A; stroke: #444444; stroke-width: 1; }
+.tagdoclist .selectbar-count { fill: var(--text); font-size: 15; }
+.tagdoclist .selectbar-sep { fill: #555555; }
+.tagdoclist .selectbar-btn-bg { fill: none; }
+.tagdoclist .selectbar-btn.hovered .selectbar-btn-bg { fill: #444444; }
+.tagdoclist .selectbar-btn.pressed .selectbar-btn-bg { fill: #555555; }
+.tagdoclist .selectbar-btn.disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
+.tagdoclist .selectbar-delete .icon { fill: #E5534B; color: #E5534B; }
+.tagdoclist .selectbar-delete.disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
 .tag-row { fill: none; }
 .tag-row > g > .title { fill: var(--text); }
 /* hovering a tag colors its label/icon only, like a plain toolbutton (All Documents) - it must not
