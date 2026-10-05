@@ -553,11 +553,17 @@ static Transform2D ancestorTransform(const SvgNode* node)
 // canonical shape is drawn with the arrow on the top edge, then mapped onto the requested edge
 void ArrowPopup::updateBackground(const Rect& outer, int side, real arrowPos) const
 {
-  if(!outer.isValid() || (side == bgSide && outer == bgRect && arrowPos == bgPos))
+  // the path is stored in the background node's own space, so it depends on the ancestors' transforms
+  //  as well as on outer: a popup that reopens under a moved anchor at the same size, on the same side,
+  //  has the same outer and - aligned to the anchor's edge - the same arrowPos, and keeping the old path
+  //  then left the background where the anchor used to be while the content followed the anchor
+  Transform2D anctf = ancestorTransform(bgNode);
+  if(!outer.isValid() || (side == bgSide && outer == bgRect && arrowPos == bgPos && anctf == bgAncestorTf))
     return;
   bgRect = outer;
   bgSide = side;
   bgPos = arrowPos;
+  bgAncestorTf = anctf;
 
   bool horzEdge = side == ARROW_TOP || side == ARROW_BOTTOM;
   Rect body = outer;
@@ -612,7 +618,6 @@ void ArrowPopup::updateBackground(const Rect& outer, int side, real arrowPos) co
   }
   path.transform(tf);
   // outer (and thus the path) is in window coordinates - map it back into the background node's own space
-  Transform2D anctf = ancestorTransform(bgNode);
   if(!anctf.isIdentity())
     path.transform(anctf.inverse());
 

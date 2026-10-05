@@ -138,6 +138,7 @@ private:
   mutable Rect bgRect;
   mutable int bgSide = -1;
   mutable real bgPos = 0;
+  mutable Transform2D bgAncestorTf;
 };
 
 ArrowPopup* createArrowPopup(int align);
