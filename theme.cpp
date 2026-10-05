@@ -42,6 +42,7 @@ svg.window  /* :root */
   --floating-separator: #555555;
   --floating-hovered: #444444;
   --floating-pressed: #555555;
+  --preview-outline: #4A4A4A;  /* edge of every document list preview: covers, thumbnails, page cards */
 }
 
 /* light theme */
@@ -79,6 +80,7 @@ svg.window.light
   --floating-separator: #CCCCCC;
   --floating-hovered: #E4E4E4;
   --floating-pressed: #D0D0D0;
+  --preview-outline: #B8B8B8;
 }
 )#";
 
@@ -338,6 +340,9 @@ rect.background { shape-rendering: crispEdges; }
 /* document cards carry their own thumbnail/paper color; the default .listitem fill behind them just
    reads as an unwanted card background */
 .tagdoclist .doc-cell { fill: none; }
+/* the frame every preview shares (Sumi's cover.h): a cover, a notebook thumbnail, a page card, and the
+   cover swatches in Create Notebook / Change Cover */
+.preview-outline { fill: none; stroke: var(--preview-outline); stroke-width: 1; }
 /* the FABs (TagDocList::createFab()): the small ones sit on the grid like the search boxes do */
 .tagdoclist .fab-bg { fill: var(--doclist-field); }
 .tagdoclist .fab-primary .fab-bg { fill: #2EA3CF; }
