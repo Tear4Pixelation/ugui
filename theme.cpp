@@ -367,6 +367,9 @@ rect.background { shape-rendering: crispEdges; }
 .tagdoclist .selectbar-btn.disabled .icon, .page-selectbar .selectbar-btn.disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
 .tagdoclist .selectbar-delete .icon, .page-selectbar .selectbar-delete .icon { fill: #E5534B; color: #E5534B; }
 .tagdoclist .selectbar-delete.disabled .icon, .page-selectbar .selectbar-delete.disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
+/* "Fit" toast over the canvas while a zoom gesture would snap to fit width (scribblewidget.cpp) */
+.fit-toast-bg { fill: var(--floating-bg); stroke: var(--floating-outline); stroke-width: 1; }
+.fit-toast-text { fill: var(--text); }
 .tag-row { fill: none; }
 .tag-row > g > .title { fill: var(--text); }
 /* hovering a tag colors its label/icon only, like a plain toolbutton (All Documents) - it must not
@@ -405,6 +408,9 @@ rect.background { shape-rendering: crispEdges; }
 .gp-sidebar .sb-row.checked > g > .sb-title { fill: #2EA3CF; }
 /* an unlocked layer still offers its lock, dimmed - the design draws the icon on locked rows only */
 .gp-sidebar .sb-lock-off .icon { opacity: 0.35; }
+/* row drag (rowdrag.cpp): the row under the pointer that a drop would land on, and the row being carried */
+.gp-sidebar .sb-row.drop-target > .sb-row-sizer { fill: var(--checked); fill-opacity: 0.3; }
+.gp-sidebar .sb-row.dragging > g > .sb-title { fill: var(--text-weak); }
 /* the search box's rounded fill is the row's own .field-bg, so the TextEdit contributes no chrome.
    border-radius is still set because the base .inputbox.focused rule (two classes, so more specific
    than this one) puts a stroke back on while the field has focus - without a radius here that focus
