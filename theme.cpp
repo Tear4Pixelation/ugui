@@ -277,6 +277,8 @@ text.dialogpopup-title { fill: var(--text); font-size: 17; font-weight: bold; ma
 .tabbar-bg { fill: var(--on-dark-surface); }
 .tabbar-btn .title { fill: var(--icon); }
 .tabbar-btn.checked .title { fill: var(--title); font-weight: bold; }
+/* Sumi editor tabs: the half of the canvas a tab dragged out of the sidebar would open a new pane in */
+.tab-drop-preview { fill: var(--checked); fill-opacity: 0.3; stroke: var(--checked); stroke-width: 2; }
 .colorbtn-ring { fill: var(--on-dark-surface); }
 .colorbox_text .inputbox-bg { fill: var(--on-dark-surface); }
 
