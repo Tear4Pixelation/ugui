@@ -350,21 +350,23 @@ rect.background { shape-rendering: crispEdges; }
 /* select mode (TagDocList::setSelectMode()): a ring and a check badge on each document; the badge is
    an empty circle until the cell is checked.  The bar replacing the FABs is one rounded container
    around FAB-sized buttons that light up only when hovered or pressed. */
-.tagdoclist .select-ring { display: none; fill: none; stroke: #2EA3CF; stroke-width: 3; }
-.tagdoclist .doc-cell.checked .select-ring { display: block; }
-.tagdoclist .select-badge-bg { fill: #000000; fill-opacity: 0.45; stroke: #FFFFFF; stroke-width: 1.5; }
-.tagdoclist .doc-cell.checked .select-badge-bg { fill: #2EA3CF; fill-opacity: 1; stroke: #2EA3CF; }
-.tagdoclist .select-check { display: none; }
-.tagdoclist .doc-cell.checked .select-check { display: block; fill: #FFFFFF; color: #FFFFFF; }
-.tagdoclist .selectbar-bg { fill: var(--floating-bg); stroke: var(--floating-outline); stroke-width: 1; }
-.tagdoclist .selectbar-count { fill: var(--text); font-size: 15; }
-.tagdoclist .selectbar-sep { fill: var(--floating-separator); }
-.tagdoclist .selectbar-btn-bg { fill: none; }
-.tagdoclist .selectbar-btn.hovered .selectbar-btn-bg { fill: var(--floating-hovered); }
-.tagdoclist .selectbar-btn.pressed .selectbar-btn-bg { fill: var(--floating-pressed); }
-.tagdoclist .selectbar-btn.disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
-.tagdoclist .selectbar-delete .icon { fill: #E5534B; color: #E5534B; }
-.tagdoclist .selectbar-delete.disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
+.tagdoclist .select-ring, .gp-sidebar .select-ring { display: none; fill: none; stroke: #2EA3CF; stroke-width: 3; }
+.tagdoclist .doc-cell.checked .select-ring, .gp-sidebar .sb-page-cell.checked .select-ring { display: block; }
+.tagdoclist .select-badge-bg, .gp-sidebar .select-badge-bg { fill: #000000; fill-opacity: 0.45; stroke: #FFFFFF; stroke-width: 1.5; }
+.tagdoclist .doc-cell.checked .select-badge-bg, .gp-sidebar .sb-page-cell.checked .select-badge-bg { fill: #2EA3CF; fill-opacity: 1; stroke: #2EA3CF; }
+.tagdoclist .select-check, .gp-sidebar .select-check { display: none; }
+.tagdoclist .doc-cell.checked .select-check, .gp-sidebar .sb-page-cell.checked .select-check { display: block; fill: #FFFFFF; color: #FFFFFF; }
+/* the same bar is the sidebar's Pages view select mode bar (.page-selectbar, over the editor's canvas) */
+.page-selectbar { font-family: satoshi; }
+.tagdoclist .selectbar-bg, .page-selectbar .selectbar-bg { fill: var(--floating-bg); stroke: var(--floating-outline); stroke-width: 1; }
+.tagdoclist .selectbar-count, .page-selectbar .selectbar-count { fill: var(--text); font-size: 15; }
+.tagdoclist .selectbar-sep, .page-selectbar .selectbar-sep { fill: var(--floating-separator); }
+.tagdoclist .selectbar-btn-bg, .page-selectbar .selectbar-btn-bg { fill: none; }
+.tagdoclist .selectbar-btn.hovered .selectbar-btn-bg, .page-selectbar .selectbar-btn.hovered .selectbar-btn-bg { fill: var(--floating-hovered); }
+.tagdoclist .selectbar-btn.pressed .selectbar-btn-bg, .page-selectbar .selectbar-btn.pressed .selectbar-btn-bg { fill: var(--floating-pressed); }
+.tagdoclist .selectbar-btn.disabled .icon, .page-selectbar .selectbar-btn.disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
+.tagdoclist .selectbar-delete .icon, .page-selectbar .selectbar-delete .icon { fill: #E5534B; color: #E5534B; }
+.tagdoclist .selectbar-delete.disabled .icon, .page-selectbar .selectbar-delete.disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
 .tag-row { fill: none; }
 .tag-row > g > .title { fill: var(--text); }
 /* hovering a tag colors its label/icon only, like a plain toolbutton (All Documents) - it must not
@@ -409,6 +411,20 @@ rect.background { shape-rendering: crispEdges; }
    ring is drawn square around a rounded field. */
 .gp-sidebar .inputbox, .gp-sidebar .inputbox-bg { fill: none; stroke: none; border-radius: 6; }
 .gp-sidebar .toolbar, .gp-sidebar .toolbar-bg { fill: none; stroke: none; }
+/* the Pages view's thumbnail grid (docs/agent/page-management.md); select mode's marks are the document
+   list's, above */
+.gp-sidebar .sb-page-cell, .gp-sidebar .sb-thumb-sizer { fill: none; }
+.gp-sidebar .sb-current-ring { display: none; fill: none; stroke: var(--checked); stroke-width: 2; }
+.gp-sidebar .sb-page-cell.current .sb-current-ring { display: block; }
+.gp-sidebar .sb-page-cell.current .sb-page-num { fill: var(--checked); }
+.gp-sidebar .sb-page-cell.hovered .sb-page-num { fill: var(--hovered-text); }
+.gp-sidebar .sb-page-cell.pressed .sb-page-num { fill: var(--pressed-text); }
+.gp-sidebar .sb-page-cell.dragging .sb-page-num { fill: var(--text-weak); }
+/* where a dragged page lands: after the page under it (its trailing edge), or before page 1.  The bars
+   are always laid out and only change fill - toggling display left them half repainted */
+.gp-sidebar .sb-drop-bar { fill: none; }
+.gp-sidebar .sb-page-cell.drop-target .sb-drop-after { fill: var(--checked); }
+.gp-sidebar .sb-page-cell.drop-before .sb-drop-before { fill: var(--checked); }
 )#";
 
 // document containing prototypes for widgets; identified by SVG class
