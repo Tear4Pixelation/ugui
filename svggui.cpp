@@ -1292,6 +1292,14 @@ bool SvgGui::processTimers()
     else {
       timer.period = period;
       timer.nextTick += period;
+      // A periodic timer that has fallen behind (its callback takes longer than its period, or the main
+      //  thread was busy) skips the ticks it missed instead of firing once for each of them.  Catching up
+      //  would loop here until nextTick passed `now`, and every other timer due in the meantime - a 1 ms
+      //  deferred action, a fling or scroll animation - would wait until this timer's lagging clock
+      //  reached it: a 1 ms timer whose callback takes 12 ms falls 11 ms further behind on every tick.
+      Timestamp afterCallback = mSecSinceEpoch();
+      if(timer.nextTick <= afterCallback)
+        timer.nextTick = afterCallback + period;
       timers.splice(std::lower_bound(++timers.begin(), timers.end(), timer), timers, timers.begin());
     }
   }
