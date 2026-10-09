@@ -335,6 +335,13 @@ bool TextEdit::sdlEventFn(SvgGui* gui, SDL_Event* event)
       stb_textedit_key(this, &stbState, STB_TEXTEDIT_K_LINEEND | STB_TEXTEDIT_K_SHIFT);
     }
     gui->setPressed(this);  // this will set class=focused
+    // a SpinBox withholds focus gained from its -/+ buttons, so it can already be the focused widget without
+    //  this text being the input widget: setPressed() then sends no FOCUS_GAINED, and tapping the text must
+    //  still show the keyboard
+    if(!isReadOnly() && gui->nextInputWidget != this) {
+      gui->setImeText(utf32_to_utf8(currText).c_str(), stbState.select_start, stbState.select_end);
+      gui->startTextInput(this);
+    }
     prevPos = Point(event->tfinger.x, event->tfinger.y);
   }
   // accept LONGPRESSALTID since widget under press point could have changed (to cursor widget)
