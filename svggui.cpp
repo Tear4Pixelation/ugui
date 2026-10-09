@@ -1561,6 +1561,9 @@ bool SvgGui::sdlTouchEvent(SDL_Event* event)
     // start long press timer; we set a custom event type but use the SDL_Event.button struct
     //  setting timer widget to win ensures that timer will be removed if Window is closed
     longPressTimer = setTimer(longPressDelayMs, win, longPressTimer, [this, win, widget, p]() {
+      // returning 0 frees the timer; a handle kept past that would make the finger up after a long press
+      //  remove whichever timer has reused its memory
+      longPressTimer = NULL;
       SDL_Event longpress = {};
       longpress.type = LONG_PRESS;
       longpress.tfinger.timestamp = SDL_GetTicks();
