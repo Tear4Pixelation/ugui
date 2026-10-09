@@ -9,6 +9,7 @@ svg.window  /* :root */
   --base: #202020;  /* list, inputbox */
   --button: #333333;  /* pushbuttons sit on the popup surface (--dark), so they stay close to it */
   --button-radius: 8;
+  --input-radius: 8;  /* text boxes, combo boxes and spin boxes: same corner as a push button */
   --hovered: #32809C;
   /* hover tints an item's own text/icon rather than filling the row behind it */
   --hovered-text: #2EA3CF;
@@ -285,6 +286,7 @@ text.dialogpopup-title { fill: var(--text); font-size: 17; font-weight: bold; ma
 .scroll-handle { fill: var(--title); }
 
 .inputbox-bg { stroke: var(--base); stroke-width: 2; }
+.inputbox-bg { border-radius: var(--input-radius); shape-rendering: auto; }  /* auto: crispEdges would jag the corners */
 /* previously we used .focused .inputbox-bg, but this created an issue w/ widgets inside a scroll widget */
 .inputbox.focused .inputbox-bg { stroke: var(--icon); }
 .text-cursor { fill: var(--icon); }

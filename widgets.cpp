@@ -1157,15 +1157,27 @@ SpinBox::SpinBox(SvgNode* n, real val, real inc, real min, real max, const char*
       updateValue( onStep(event->key.keysym.sym == SDLK_UP ? 1 : -1) );
       return true;
     }
-    // make sure text matches value on focus lost
+    // keyboard dismissed or focus moved without Return (a numeric soft keyboard has no Return key): apply what
+    //  was typed rather than discarding it; text that already shows the value is left alone, since parsing
+    //  a rounded display ("1.33") back would overwrite the exact value
     if(event->type == SvgGui::FOCUS_LOST) {
-      std::string s = fstring(m_format.c_str(), m_value);
-      if(s != spinboxText->text())
-        spinboxText->setText(s.c_str());
+      std::string shown = fstring(m_format.c_str(), m_value);
+      if(shown != spinboxText->text() && !updateValueFromText(spinboxText->text().c_str()))
+        spinboxText->setText(shown.c_str());  // not a number: make sure text matches value
     }
-    // don't forward focus event to textedit on mobile if buttons clicked so soft keyboard isn't shown
-    if(SvgGui::isFocusedWidgetEvent(event)
-        && (!PLATFORM_MOBILE || (gui->pressedWidget != incBtn && gui->pressedWidget != decBtn)))
+    // a press on the - / + buttons must not focus the text, or mobile shows the soft keyboard.  Inside a popup
+    //  (pressed group container) pressedWidget is the popup rather than the button, so it cannot be used to
+    //  tell: instead check what the pointer is over - SvgGui sets hoveredWidget before it sends the press.
+    //  Only the press focus is withheld; tapping the text itself still reaches the TextBox/TextEdit below.
+    if(event->type == SvgGui::FOCUS_GAINED && event->user.code == SvgGui::REASON_PRESSED) {
+      auto isOverButton = [gui](Widget* button){
+        return gui->pressedWidget == button || (gui->hoveredWidget
+            && (gui->hoveredWidget == button || gui->hoveredWidget->isDescendantOf(button)));
+      };
+      if(isOverButton(incBtn) || isOverButton(decBtn))
+        return false;
+    }
+    if(SvgGui::isFocusedWidgetEvent(event))
       return spinboxText->sdlEvent(gui, event);
     return false;
   });
@@ -1184,8 +1196,9 @@ void SpinBox::updateValue(real val)
 bool SpinBox::setValue(real val)
 {
   real v = std::min(std::max(val, m_min), m_max);
-  if(std::abs(v/m_step) < 1E-6)
-    v = 0.0;  // floating point issues can cause tiny values when stepping
+  // floating point issues can cause tiny values when stepping - snap to 0, but only if 0 is allowed
+  if(std::abs(v/m_step) < 1E-6 && m_min <= 0 && m_max >= 0)
+    v = 0.0;
   if(v == m_value)
     return true;
   decBtn->setEnabled(v > m_min);
@@ -1195,20 +1208,27 @@ bool SpinBox::setValue(real val)
   return v == val;
 }
 
+// Parses typed text and applies it.  Accepts a leading sign, leading zeros ("007", "0", "-0"), "5." and ".5",
+//  a comma as decimal separator, and a trailing "%" (the pressure format) - but not other trailing junk.  A value
+//  outside the limits is clamped, not refused, so e.g. 0 in a field whose minimum is 0.01 gives 0.01 instead of
+//  silently reverting.  Returns false only if the text is not a number (value and text left as they were).
 bool SpinBox::updateValueFromText(const char* s)
 {
+  std::string text(s);
+  std::replace(text.begin(), text.end(), ',', '.');
   char* next = NULL;
-  real v = strtof(s, &next);
-  if(!next || next == s || v < m_min || v > m_max)
+  real v = strtod(text.c_str(), &next);
+  if(!next || next == text.c_str() || !std::isfinite(v))
     return false;
-  if(v == m_value)
-    return true;
-  decBtn->setEnabled(v > m_min);
-  incBtn->setEnabled(v < m_max);
-  m_value = v;
-  if(onValueChanged)
-    onValueChanged(v);
-  //spinboxText->redraw();
+  while(*next == ' ' || *next == '\t' || *next == '%')
+    ++next;
+  if(*next != '\0')
+    return false;
+  updateValue(v);  // clamps, snaps -0 to 0, updates buttons and text, calls onValueChanged
+  // show the canonical text, e.g. "5." -> "5", "007" -> "7" (setValue does nothing if the value is unchanged)
+  std::string shown = fstring(m_format.c_str(), m_value);
+  if(shown != spinboxText->text())
+    spinboxText->setText(shown.c_str());
   return true;
 }
 
