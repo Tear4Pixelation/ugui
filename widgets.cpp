@@ -959,6 +959,9 @@ void Tooltips::setup(Widget* target, const char* tiptext, int align)
       }
       else {
         timer = gui->setTimer(delayMs, target, timer, [=]() {
+          // returning 0 frees the timer; a handle kept past that would make the LEAVE below remove
+          //  whichever timer has reused its memory
+          timer = NULL;
           show(tooltip, gui->prevFingerPos, align);
           return 0;  // single shot timer
         });
