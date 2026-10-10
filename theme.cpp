@@ -26,6 +26,7 @@ svg.window  /* :root */
   --icon: #CDCDCD;
   --icon-disabled: #808080;
   --canvas: #333333;  /* area around page - also used by ScribbleArea::BACKGROUND_COLOR */
+  --canvas-night: #333333;  /* the canvas under Invert Colors: dark gray in either UI theme (BACKGROUND_COLOR_DARK) */
   --panel-outline: #ACACAC;
   --panel-outline-width: 1;
   --on-dark-surface: #202020;  /* color picker: swatch ring, tab bar bg, hex input bg */
@@ -44,6 +45,12 @@ svg.window  /* :root */
   --floating-hovered: #444444;
   --floating-pressed: #555555;
   --preview-outline: #4A4A4A;  /* edge of every document list preview: covers, thumbnails, page cards */
+  --danger: #E5534B;  /* destructive actions (select mode's Delete) */
+  --sidebar-preview: #B1B2B5;  /* the layer preview block */
+  --badge-bg: #000000;  /* select mode's empty check badge, under --badge-bg-opacity */
+  --badge-edge: #FFFFFF;
+  --badge-bg-opacity: 0.45;
+  --on-checked: #FFFFFF;  /* tick on a checked badge */
 }
 
 /* light theme */
@@ -68,6 +75,7 @@ svg.window.light
   --icon: #303030;
   --icon-disabled: #A0A0A0;
   --canvas: #BBBBBB;
+  --canvas-night: #333333;
   --panel-outline: #A0A0A0;
   --panel-outline-width: 1;
   --popup-item-hovered: #E4E4E4;
@@ -82,6 +90,12 @@ svg.window.light
   --floating-hovered: #E4E4E4;
   --floating-pressed: #D0D0D0;
   --preview-outline: #B8B8B8;
+  --danger: #D1362E;
+  --sidebar-preview: #8A8B8E;
+  --badge-bg: #FFFFFF;
+  --badge-edge: #606060;
+  --badge-bg-opacity: 0.7;
+  --on-checked: #FFFFFF;
 }
 )#";
 
@@ -349,17 +363,17 @@ rect.background { shape-rendering: crispEdges; }
 .preview-outline { fill: none; stroke: var(--preview-outline); stroke-width: 1; }
 /* the FABs (TagDocList::createFab()): the small ones sit on the grid like the search boxes do */
 .tagdoclist .fab-bg { fill: var(--doclist-field); }
-.tagdoclist .fab-primary .fab-bg { fill: #2EA3CF; }
+.tagdoclist .fab-primary .fab-bg { fill: var(--checked); }
 .tagdoclist .fab-primary .icon { fill: var(--fab-primary-icon); color: var(--fab-primary-icon); }
 /* select mode (TagDocList::setSelectMode()): a ring and a check badge on each document; the badge is
    an empty circle until the cell is checked.  The bar replacing the FABs is one rounded container
    around FAB-sized buttons that light up only when hovered or pressed. */
-.tagdoclist .select-ring, .gp-sidebar .select-ring { display: none; fill: none; stroke: #2EA3CF; stroke-width: 3; }
+.tagdoclist .select-ring, .gp-sidebar .select-ring { display: none; fill: none; stroke: var(--checked); stroke-width: 3; }
 .tagdoclist .doc-cell.checked .select-ring, .gp-sidebar .sb-page-cell.checked .select-ring { display: block; }
-.tagdoclist .select-badge-bg, .gp-sidebar .select-badge-bg { fill: #000000; fill-opacity: 0.45; stroke: #FFFFFF; stroke-width: 1.5; }
-.tagdoclist .doc-cell.checked .select-badge-bg, .gp-sidebar .sb-page-cell.checked .select-badge-bg { fill: #2EA3CF; fill-opacity: 1; stroke: #2EA3CF; }
+.tagdoclist .select-badge-bg, .gp-sidebar .select-badge-bg { fill: var(--badge-bg); fill-opacity: var(--badge-bg-opacity); stroke: var(--badge-edge); stroke-width: 1.5; }
+.tagdoclist .doc-cell.checked .select-badge-bg, .gp-sidebar .sb-page-cell.checked .select-badge-bg { fill: var(--checked); fill-opacity: 1; stroke: var(--checked); }
 .tagdoclist .select-check, .gp-sidebar .select-check { display: none; }
-.tagdoclist .doc-cell.checked .select-check, .gp-sidebar .sb-page-cell.checked .select-check { display: block; fill: #FFFFFF; color: #FFFFFF; }
+.tagdoclist .doc-cell.checked .select-check, .gp-sidebar .sb-page-cell.checked .select-check { display: block; fill: var(--on-checked); color: var(--on-checked); }
 /* the same bar is the sidebar's Pages view select mode bar (.page-selectbar, over the editor's canvas) */
 .page-selectbar { font-family: satoshi; }
 .tagdoclist .selectbar-bg, .page-selectbar .selectbar-bg { fill: var(--floating-bg); stroke: var(--floating-outline); stroke-width: 1; }
@@ -369,7 +383,7 @@ rect.background { shape-rendering: crispEdges; }
 .tagdoclist .selectbar-btn.hovered .selectbar-btn-bg, .page-selectbar .selectbar-btn.hovered .selectbar-btn-bg { fill: var(--floating-hovered); }
 .tagdoclist .selectbar-btn.pressed .selectbar-btn-bg, .page-selectbar .selectbar-btn.pressed .selectbar-btn-bg { fill: var(--floating-pressed); }
 .tagdoclist .selectbar-btn.disabled .icon, .page-selectbar .selectbar-btn.disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
-.tagdoclist .selectbar-delete .icon, .page-selectbar .selectbar-delete .icon { fill: #E5534B; color: #E5534B; }
+.tagdoclist .selectbar-delete .icon, .page-selectbar .selectbar-delete .icon { fill: var(--danger); color: var(--danger); }
 .tagdoclist .selectbar-delete.disabled .icon, .page-selectbar .selectbar-delete.disabled .icon { fill: var(--icon-disabled); color: var(--icon-disabled); }
 /* "Fit" toast over the canvas while a zoom gesture would snap to fit width (scribblewidget.cpp) */
 .fit-toast-bg { fill: var(--floating-bg); stroke: var(--floating-outline); stroke-width: 1; }
@@ -390,26 +404,27 @@ rect.background { shape-rendering: crispEdges; }
 .tag-row.checked > g > .title { fill: var(--checked); }
 .tag-row.checked > g > .icon-container > .icon { fill: var(--checked); color: var(--checked); }
 
-/* general-purpose sidebar (sidebar.cpp / SIDEBAR_SPEC.md).  Colors are literals from the Penpot
-   file rather than theme variables, exactly as the floating toolbar panels are: this panel is part
-   of that same dark floating chrome, which does not follow the document's light/dark theme. */
+/* general-purpose sidebar (sidebar.cpp / SIDEBAR_SPEC.md).  Every color is a theme variable, so the
+   panel follows the light/dark theme and Invert Colors like the toolbar above it; the dark values
+   equal the Penpot file's literals it was designed with. */
 .gp-sidebar { font-family: satoshi; }
 /* outlined like .toolbar-bg, so the sidebar reads as the same kind of surface as the toolbar above it */
-.gp-sidebar .panel-bg { fill: #101010; stroke: var(--panel-outline); stroke-width: var(--panel-outline-width); }
-.gp-sidebar .field-bg { fill: #444444; stroke: none; }
-.gp-sidebar .sb-view-label { fill: #CDCDCD; }
-.gp-sidebar .sb-title { fill: #F2F2F2; }
-.gp-sidebar .sb-sub { fill: #CDCDCD; }
-.gp-sidebar .sb-preview { fill: #B1B2B5; stroke: none; }
+.gp-sidebar .panel-bg { fill: var(--dark); stroke: var(--panel-outline); stroke-width: var(--panel-outline-width); }
+.gp-sidebar .field-bg { fill: var(--doclist-field); stroke: none; }
+.gp-sidebar .sb-view-label { fill: var(--icon); }
+.gp-sidebar .sb-title { fill: var(--text); }
+.gp-sidebar .sb-sub { fill: var(--icon); }
+.gp-sidebar .sb-preview { fill: var(--sidebar-preview); stroke: none; }
 /* rows are transparent; only their text reacts, like a tag row rather than a list item */
 .gp-sidebar .sb-row, .gp-sidebar .sb-row-sizer, .gp-sidebar .sb-actions-sizer { fill: none; }
 /* the pinned sidebar owns its whole column; its margins are painted as canvas surround rather than
    left showing whatever the canvas drew there before it shrank */
 .gp-sidebar .sb-backfill { fill: var(--canvas); stroke: none; }
+.gp-sidebar .sb-backfill.night { fill: var(--canvas-night); }
 .gp-sidebar .sb-row.hovered > g > .sb-title { fill: var(--hovered-text); }
 .gp-sidebar .sb-row.pressed > g > .sb-title { fill: var(--pressed-text); }
 /* the current layer, per the design's blue label */
-.gp-sidebar .sb-row.checked > g > .sb-title { fill: #2EA3CF; }
+.gp-sidebar .sb-row.checked > g > .sb-title { fill: var(--checked); }
 /* an unlocked layer still offers its lock, dimmed - the design draws the icon on locked rows only */
 .gp-sidebar .sb-lock-off .icon { opacity: 0.35; }
 /* row drag (rowdrag.cpp): the row under the pointer that a drop would land on, and the row being carried */
