@@ -20,6 +20,8 @@ private:
   Slider* createGroup(const char* title, const std::function<void(real)>& callback, const std::vector<Color>& colors={0, 0});
 
   ColorF currColor;
+  Color shownColor;  // what setColor() last put on the sliders; shownValid is cleared by a drag
+  bool shownValid = false;
 
   //Widget* colorPreview;
   Slider* sliderR;
@@ -48,6 +50,7 @@ private:
 
   enum {HEX_COLOR, RGB_COLOR, NAMED_COLOR} editType;
   Color currColor;
+  bool previewValid = false;  // currColor has been drawn into the preview swatch
   TextEdit* hexEdit;
   SvgNode* colorPreview;
   ColorSliders* colorPicker;
