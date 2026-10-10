@@ -1539,14 +1539,15 @@ bool SvgGui::sdlTouchEvent(SDL_Event* event)
       // now we can erase released touch point
       if((event->type == SDL_FINGERUP || event->type == SVGGUI_FINGERCANCEL) && itTouchPoint != touchPoints.end())
         touchPoints.erase(itTouchPoint);
+      // clear before the check below: a cancelled/lifted pen must not keep the canvas as pressedWidget
+      if(isPen)
+        penDown = false;  // SVGGUI_FINGERCANCEL for pen
       if(touchPoints.empty()) {
         multiTouchActive = false;
         //touchAccepted = true;  // for pen hover events
         if(!penDown)
           pressedWidget = NULL;
       }
-      if(isPen)
-        penDown = false;  // SVGGUI_FINGERCANCEL for pen
       return res;
     }
   }
