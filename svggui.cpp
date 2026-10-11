@@ -711,11 +711,18 @@ void Widget::setLayoutBounds(const Rect& dest)
 
   // with inputScale (assuming it can take non-integer values), we have to use floats instead of ints for
   //  layout (otherwise we get untouched pixels along right and/or bottom edges for some window sizes)
-  real sx = std::abs(dest.width() - src.width()) < thresh ? 1.0 : dest.width()/src.width();
-  real sy = std::abs(dest.height() - src.height()) < thresh ? 1.0 : dest.height()/src.height();
+  bool resizeX = std::abs(dest.width() - src.width()) >= thresh;
+  bool resizeY = std::abs(dest.height() - src.height()) >= thresh;
+  // A node of zero extent (e.g. an empty container) cannot be scaled to any size: dividing by its width
+  //  gave an infinite scale, which made the layout transform - and so the node's bounds from then on -
+  //  inf/NaN for good, and the node (with everything later put in it) was never laid out or drawn
+  //  properly again.  Such a node is only moved; a rect is still resized below.
+  real sx = resizeX && src.width() > 0 ? dest.width()/src.width() : 1.0;
+  real sy = resizeY && src.height() > 0 ? dest.height()/src.height() : 1.0;
   real dx = dest.left - src.left;
   real dy = dest.top - src.top;
-  if(sx == 1 && sy == 1 && std::abs(dx) < thresh && std::abs(dy) < thresh)
+  bool isRect = node->type() == SvgNode::RECT;
+  if(sx == 1 && sy == 1 && !(isRect && (resizeX || resizeY)) && std::abs(dx) < thresh && std::abs(dy) < thresh)
     return;
 
   // this can happen if layout tries to squeeze stuff together - can happen with multiple flex containers
@@ -725,7 +732,7 @@ void Widget::setLayoutBounds(const Rect& dest)
 
   // can also just set w,h for image and use nodes instead of scaling?
   // adjust rect size instead of scaling to handle strokes
-  if(node->type() == SvgNode::RECT && (sx != 1 || sy != 1)) {
+  if(isRect && (resizeX || resizeY)) {
     SvgRect* rnode = static_cast<SvgRect*>(node);
     Transform2D tf = rnode->totalTransform();
     real sw = rnode->getFloatAttr("stroke-width", 0);
