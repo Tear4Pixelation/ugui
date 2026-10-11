@@ -1944,6 +1944,9 @@ Rect SvgGui::layoutAndDraw(Painter* painter)
   };
   size_t ii = debugDirty || fullRedraw ? 0 : findDirtyCover(dirty, layoutidx);  // layoutidx is bottommost window updated
 
+  if(onBeforeDraw)
+    onBeforeDraw(painter, debugDirty || fullRedraw ? screenRect : dirty);
+
   // ... then draw that window and those above it
   painter->beginFrame();
   painter->scale(paintScale);  // beginFrame resets Painter state

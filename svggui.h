@@ -263,6 +263,9 @@ public:
   // set this if entire screen needs to be repainted if anything dirty (e.g. when drawing directly to
   //  screen instead of intermediate framebuffer) - if nothing dirty, user can just call endFrame() again
   bool fullRedraw = false;
+  // called by layoutAndDraw() after layout, once the frame's dirty rect (window coords, before paintScale) is
+  //  known, just before painter->beginFrame(): the place to render offscreen layers that the frame will draw
+  std::function<void(Painter*, const Rect&)> onBeforeDraw;
 
   static bool debugLayout;
   static bool debugDirty;
