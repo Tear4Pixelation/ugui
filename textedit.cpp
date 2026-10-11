@@ -218,9 +218,17 @@ static std::string cleanText(std::string s)
 
 void TextEdit::setText(const char* s)
 {
+  std::u32string text32 = utf8_to_utf32(cleanText(s).c_str());
+  // Already in the state this would leave - the same text, no selection, cursor at the start, handle
+  //  hidden, no update pending: skip it.  Owners re-push unchanged values all the time (the pen
+  //  toolbar's hex box after every stroke), and the full path adds an undo record and re-measures the
+  //  glyphs.  Anything short of that exact state still takes the full path, so callers relying on
+  //  setText() to reset the cursor or clear a selection keep getting that.
+  if(text32 == currText && stbState.cursor == 0 && stbState.select_start == stbState.select_end
+      && textChanged == NO_TEXT_CHANGE && !cursorHandle->isVisible())
+    return;
   stbState.select_end = currText.size();
   stbState.select_start = 0;
-  std::u32string text32 = utf8_to_utf32(cleanText(s).c_str());
   stb_textedit_paste(this, &stbState, text32.data(), text32.size());
   // move cursor to beginning so beginning of string is visible
   stb_textedit_key(this, &stbState, STB_TEXTEDIT_K_LINESTART);

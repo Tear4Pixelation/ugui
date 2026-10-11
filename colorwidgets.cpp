@@ -161,8 +161,11 @@ void ColorEditBox::setColor(Color c)
     hexEdit->setText("???");
     return;
   }
-  updateHexEdit(c);
-  updatePreview(c);
+  // each part checks its own state, since the sliders can be shared with another box (createColorEditBox)
+  //  and the hex text may hold the user's half-typed entry: an unchanged color still rewrites that text
+  updateHexEdit(c);  // TextEdit::setText() returns early when the text is already showing
+  if(!previewValid || !(c == currColor))
+    updatePreview(c);
   if(colorPicker)
     colorPicker->setColor(c);
 }
@@ -180,6 +183,7 @@ void ColorEditBox::updateHexEdit(Color c)
 void ColorEditBox::updatePreview(Color c)
 {
   currColor = c;
+  previewValid = true;
   colorPreview->setAttr<color_t>("fill", c.color);
 }
 
@@ -259,6 +263,7 @@ ColorSliders::ColorSliders(SvgNode* n, bool allowalpha) : Widget(n)
 
   auto onRgb = [this](real){
     currColor = ColorF(sliderR->value(), sliderG->value(), sliderB->value(), sliderA ? sliderA->value() : 1);
+    shownValid = false;
     updateWidgets(true, true);  //updateWidgets(false, true);
     if(onColorChanged)
       onColorChanged(currColor.toColor());
@@ -266,6 +271,7 @@ ColorSliders::ColorSliders(SvgNode* n, bool allowalpha) : Widget(n)
   auto onHsv = [this](real){
     currColor = ColorF::fromHSV(
         sliderH->value()*360.0, sliderS->value(), sliderV->value(), sliderA ? sliderA->value() : 1);
+    shownValid = false;
     updateWidgets(true, true);  //updateWidgets(true, false);
     if(onColorChanged)
       onColorChanged(currColor.toColor());
@@ -295,7 +301,13 @@ ColorSliders::ColorSliders(SvgNode* n, bool allowalpha) : Widget(n)
 
 void ColorSliders::setColor(Color c)
 {
+  // the pen toolbar pushes its color after every stroke; rewriting four gradients and thumbs for the
+  //  color already shown is wasted.  A drag clears shownValid, so the next setColor() always lands.
+  if(shownValid && c == shownColor)
+    return;
   currColor = ColorF(c);
+  shownColor = c;
+  shownValid = true;
   updateWidgets(true, true);
 }
 
