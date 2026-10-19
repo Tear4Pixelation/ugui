@@ -230,9 +230,16 @@ public:
   void updateValue(real val);
   bool updateValueFromText(const char* s);
   void setLimits(real min, real max) { m_min = min; m_max = max; }
+  // the number shown is value*scale, formatted with format (e.g. 100 and "%.3g%%" to show a fraction as a
+  //  percent); the value itself is never rounded or rescaled, only the text, and typed text is divided back
+  void setDisplay(real scale, const char* format);
 
   std::function<real(int nsteps)> onStep;
   std::function<void(real value)> onValueChanged;
+  // a horizontal drag on the field scrubs the value (right = onStep(1) per SCRUB_STEP, left = onStep(-1));
+  //  these bracket one drag, e.g. so a drag is one undo step
+  std::function<void()> onScrubBegin;
+  std::function<void()> onScrubEnd;
 
 private:
   real m_value;
@@ -240,7 +247,18 @@ private:
   real m_min;
   real m_max;
   std::string m_format;
+  real m_scale = 1;
   TextBox* spinboxText;
+  SvgNode* fieldNode;
+  // scrub state: a press on the unfocused field waits (PENDING) until it is a tap, which gives the field
+  //  focus as before, or a horizontal drag past the slop, which scrubs without ever focusing it
+  enum { SCRUB_IDLE, SCRUB_PENDING, SCRUB_ACTIVE } m_scrub = SCRUB_IDLE;
+  bool m_replayingPress = false;
+  Point m_scrubOrigin;
+  int m_scrubSteps = 0;
+  SDL_Event m_pressEvent;
+  bool scrubEvent(SvgGui* gui, SDL_Event* event);
+  std::string shownText() const;
   Button* incBtn;
   Button* decBtn;
 };

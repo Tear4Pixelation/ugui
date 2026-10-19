@@ -106,6 +106,9 @@ public:
   bool m_enabled = true;
   bool isPressedGroupContainer = false;
   bool isFocusable = false;
+  // a press on this widget or a descendant never moves focus (and so never shows the soft keyboard): the
+  //  - / + buttons of a SpinBox set it, since their focusable ancestor is the text field
+  bool noFocusOnPress = false;
   std::shared_ptr<void> m_userData;
 
   struct BoxShadow {
@@ -190,7 +193,8 @@ public:
   void closeWindow(Window* win);
   enum FocusReason { REASON_NONE = 0, REASON_PRESSED, REASON_TAB, REASON_WINDOW, REASON_MENU, REASON_HIDDEN };
   bool setFocused(Widget* widget, FocusReason reason = REASON_NONE);
-  void setPressed(Widget* widget);
+  // focus = false: make widget the pressed one without focusing it (or showing the keyboard)
+  void setPressed(Widget* widget, bool focus = true);
   void setWindowXmlClass(const char* xmlcls);
   void setWindowStylesheet(std::unique_ptr<SvgCssStylesheet> ss);
 
@@ -244,6 +248,10 @@ public:
 
   // input handling
   Widget* pressedWidget = NULL;
+  // while set (and a widget is pressed), finger motion and up events go to this widget first, wherever the
+  //  pointer is - a scrubbing SpinBox keeps its drag after the finger leaves it.  Its handler returns true to
+  //  keep the event; it is cleared on finger up
+  Widget* dragGrabWidget = NULL;
   Widget* hoveredWidget = NULL;
   Widget* nextInputWidget = NULL;
   Widget* currInputWidget = NULL;

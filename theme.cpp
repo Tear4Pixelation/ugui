@@ -300,6 +300,8 @@ text.dialogpopup-title { fill: var(--text); font-size: 17; font-weight: bold; ma
 .scroll-handle { fill: var(--title); }
 
 .inputbox-bg { stroke: var(--base); stroke-width: 2; }
+/* the spin box's - / + container: a push button's fill and corner, apart from the text field */
+.spinbox-buttons-bg { fill: var(--button); border-radius: var(--button-radius); shape-rendering: auto; }
 .inputbox-bg { border-radius: var(--input-radius); shape-rendering: auto; }  /* auto: crispEdges would jag the corners */
 /* previously we used .focused .inputbox-bg, but this created an issue w/ widgets inside a scroll widget */
 .inputbox.focused .inputbox-bg { stroke: var(--icon); }
@@ -614,20 +616,28 @@ static const char* defaultWidgetSVG = R"#(
 
   <g id="spinbox" class="inputbox spinbox" layout="box">
     <rect class="min-width-rect" width="150" height="36" fill="none"/>
-    <rect class="inputbox-bg" box-anchor="fill" width="150" height="36"/>
 
-    <g class="spinbox_content" box-anchor="fill" layout="flex" flex-direction="row" margin="0 2">
-      <g class="textbox spinbox_text" box-anchor="fill" layout="box">
+    <g class="spinbox_content" box-anchor="fill" layout="flex" flex-direction="row">
+      <!-- the text field: its own box, so a press on the buttons below is never a press on it -->
+      <g class="spinbox_field" box-anchor="fill" layout="box">
+        <rect class="inputbox-bg" box-anchor="fill" width="20" height="36"/>
+        <g class="textbox spinbox_text" box-anchor="fill" layout="box" margin="0 2">
+        </g>
       </g>
 
-      <!-- inc/dec buttons -->
-      <g class="toolbutton spinbox_dec" box-anchor="vfill" layout="box">
-        <rect class="background" width="28" height="28"/>
-        <use class="icon" width="28" height="28" xlink:href="#chevron-left" />
-      </g>
-      <g class="toolbutton spinbox_inc" box-anchor="vfill" layout="box">
-        <rect class="background" width="28" height="28"/>
-        <use class="icon" width="28" height="28" xlink:href="#chevron-right" />
+      <!-- inc/dec buttons: a small rounded container of their own, spaced from the field -->
+      <g class="spinbox_buttons" box-anchor="vfill" layout="box" margin="0 0 0 8">
+        <rect class="spinbox-buttons-bg" box-anchor="fill" width="20" height="36"/>
+        <g box-anchor="fill" layout="flex" flex-direction="row" margin="0 2">
+          <g class="toolbutton spinbox_dec" box-anchor="vfill" layout="box">
+            <rect class="background" width="28" height="28"/>
+            <use class="icon" width="28" height="28" xlink:href="#chevron-left" />
+          </g>
+          <g class="toolbutton spinbox_inc" box-anchor="vfill" layout="box">
+            <rect class="background" width="28" height="28"/>
+            <use class="icon" width="28" height="28" xlink:href="#chevron-right" />
+          </g>
+        </g>
       </g>
     </g>
   </g>

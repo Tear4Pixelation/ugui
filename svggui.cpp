@@ -1096,8 +1096,11 @@ void SvgGui::setImeText(const char* text, int selStart, int selEnd)
 bool SvgGui::setFocused(Widget* widget, FocusReason reason)
 {
   Window* win = widget->window();
-  while(widget && !(widget->isFocusable && widget->isEnabled()))
+  while(widget && !(widget->isFocusable && widget->isEnabled())) {
+    if(widget->noFocusOnPress && reason == REASON_PRESSED)
+      return false;  // focus stays where it is
     widget = widget->parent();
+  }
   if(win->focusedWidget == widget)
     return true;
   if(!widget)
@@ -1112,10 +1115,12 @@ bool SvgGui::setFocused(Widget* widget, FocusReason reason)
   return true;
 }
 
-void SvgGui::setPressed(Widget* widget)
+void SvgGui::setPressed(Widget* widget, bool focus)
 {
   pressedWidget = getPressedGroupContainer(widget);
-  setFocused(widget, REASON_PRESSED);
+  dragGrabWidget = NULL;  // a new press ends any grab
+  if(focus)
+    setFocused(widget, REASON_PRESSED);
 }
 
 // send leave events to hoveredWidget and ancestors up to but not including widget (which is made the new
@@ -1797,6 +1802,17 @@ bool SvgGui::sendEvent(Window* win, Widget* widget, SDL_Event* event)
         }
         hoveredWidget = widget;
       }
+    }
+  }
+
+  if(pressedWidget && dragGrabWidget && (event->type == SDL_FINGERMOTION || event->type == SDL_FINGERUP)) {
+    Widget* grab = dragGrabWidget;
+    if(event->type == SDL_FINGERUP)
+      dragGrabWidget = NULL;
+    if(grab->sdlEvent(this, event)) {
+      if(event->type == SDL_FINGERUP)
+        pressedWidget = NULL;
+      return true;
     }
   }
 

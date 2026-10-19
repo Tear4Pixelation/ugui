@@ -1147,6 +1147,7 @@ SpinBox::SpinBox(SvgNode* n, real val, real inc, real min, real max, const char*
   //spinboxText = selectFirst(".spinbox_text");
   SvgNode* textNode = containerNode()->selectFirst(".spinbox_text");
   spinboxText = textNode->hasExt() ? static_cast<TextBox*>(textNode->ext()) : new TextBox(textNode);
+  fieldNode = containerNode()->selectFirst(".spinbox_field");
 
   // default onStep impl - can be override by user
   onStep = [this](int nsteps){ return value() + nsteps*step(); };
@@ -1154,6 +1155,11 @@ SpinBox::SpinBox(SvgNode* n, real val, real inc, real min, real max, const char*
   incBtn->onClicked = [this](){ updateValue(onStep(1)); };
   decBtn = new Button(containerNode()->selectFirst(".spinbox_dec"));
   decBtn->onClicked = [this](){ updateValue(onStep(-1)); };
+  // the buttons sit in their own container, apart from the text field; the focusable widget they share
+  //  with the field is this one, so a press on them must not move focus to it (that focused the text and
+  //  showed the soft keyboard on every tap of - or +)
+  Widget* buttonsBox = new Widget(containerNode()->selectFirst(".spinbox_buttons"));
+  buttonsBox->noFocusOnPress = incBtn->noFocusOnPress = decBtn->noFocusOnPress = true;
 
   addHandler([this](SvgGui* gui, SDL_Event* event){
     if(event->type == SDL_KEYDOWN && (event->key.keysym.sym == SDLK_UP || event->key.keysym.sym == SDLK_DOWN)) {
@@ -1164,28 +1170,96 @@ SpinBox::SpinBox(SvgNode* n, real val, real inc, real min, real max, const char*
     //  was typed rather than discarding it; text that already shows the value is left alone, since parsing
     //  a rounded display ("1.33") back would overwrite the exact value
     if(event->type == SvgGui::FOCUS_LOST) {
-      std::string shown = fstring(m_format.c_str(), m_value);
+      std::string shown = shownText();
       if(shown != spinboxText->text() && !updateValueFromText(spinboxText->text().c_str()))
         spinboxText->setText(shown.c_str());  // not a number: make sure text matches value
     }
-    // a press on the - / + buttons must not focus the text, or mobile shows the soft keyboard.  Inside a popup
-    //  (pressed group container) pressedWidget is the popup rather than the button, so it cannot be used to
-    //  tell: instead check what the pointer is over - SvgGui sets hoveredWidget before it sends the press.
-    //  Only the press focus is withheld; tapping the text itself still reaches the TextBox/TextEdit below.
-    if(event->type == SvgGui::FOCUS_GAINED && event->user.code == SvgGui::REASON_PRESSED) {
-      auto isOverButton = [gui](Widget* button){
-        return gui->pressedWidget == button || (gui->hoveredWidget
-            && (gui->hoveredWidget == button || gui->hoveredWidget->isDescendantOf(button)));
-      };
-      if(isOverButton(incBtn) || isOverButton(decBtn))
-        return false;
-    }
+    if(scrubEvent(gui, event))
+      return true;
     if(SvgGui::isFocusedWidgetEvent(event))
       return spinboxText->sdlEvent(gui, event);
     return false;
   });
+  // the text sees a press before this widget does (and a TextEdit takes it, focusing itself), so it needs
+  //  the same look; handlers added later run first
+  spinboxText->addHandler([this](SvgGui* gui, SDL_Event* event){
+    return event->type == SDL_FINGERDOWN && scrubEvent(gui, event);
+  });
 
   setValue(val);
+}
+
+// Scrubbing: a horizontal drag that starts on the field changes the value by one onStep() for every
+//  SCRUB_STEP the finger travels (right = up).  The press is held back until it is known what it is: a
+//  tap gives the text its focus (the press is replayed to it), a drag never focuses or opens the keyboard,
+//  and a vertical drag is dropped, leaving vertical motion to whatever scrolls.  A field that already has
+//  focus is being edited, so its presses go straight to the text (cursor, selecting).
+bool SpinBox::scrubEvent(SvgGui* gui, SDL_Event* event)
+{
+  static const real SCRUB_SLOP = 8;  // travel before a press is a drag, ugui units
+  static const real SCRUB_STEP = 10;  // travel per step once scrubbing
+  if(m_replayingPress)
+    return false;
+  bool isLeftFinger = (event->type == SDL_FINGERDOWN || event->type == SDL_FINGERMOTION
+      || event->type == SDL_FINGERUP) && event->tfinger.fingerId == SDL_BUTTON_LMASK;
+  if(!isLeftFinger)
+    return false;
+  Point pos(event->tfinger.x, event->tfinger.y);
+  if(event->type == SDL_FINGERDOWN) {
+    Window* win = window();
+    if(m_scrub != SCRUB_IDLE || !isEnabled() || (win && win->focusedWidget == this)
+        || !fieldNode->bounds().contains(pos))
+      return false;
+    m_scrub = SCRUB_PENDING;
+    m_scrubOrigin = pos;
+    m_scrubSteps = 0;
+    m_pressEvent = *event;
+    gui->setPressed(this, false);
+    gui->dragGrabWidget = this;
+    return true;
+  }
+  if(m_scrub == SCRUB_IDLE)
+    return false;
+  if(event->type == SDL_FINGERMOTION) {
+    real dx = pos.x - m_scrubOrigin.x, dy = pos.y - m_scrubOrigin.y;
+    if(m_scrub == SCRUB_PENDING) {
+      if(std::abs(dx) >= SCRUB_SLOP && std::abs(dx) > std::abs(dy)) {
+        m_scrub = SCRUB_ACTIVE;
+        m_scrubOrigin.x = pos.x;  // count from where the drag began, so it does not jump
+        if(onScrubBegin)
+          onScrubBegin();
+      }
+      else if(std::abs(dy) >= SCRUB_SLOP)
+        m_scrub = SCRUB_IDLE;  // vertical: not ours, and not a tap either
+      return true;
+    }
+    int target = int((pos.x - m_scrubOrigin.x)/SCRUB_STEP);  // truncates toward zero
+    while(m_scrubSteps < target) { ++m_scrubSteps; updateValue(onStep(1)); }
+    while(m_scrubSteps > target) { --m_scrubSteps; updateValue(onStep(-1)); }
+    return true;
+  }
+  // finger up
+  int state = m_scrub;
+  m_scrub = SCRUB_IDLE;
+  if(state == SCRUB_ACTIVE) {
+    if(onScrubEnd)
+      onScrubEnd();
+  }
+  else if(state == SCRUB_PENDING) {
+    m_replayingPress = true;
+    spinboxText->sdlEvent(gui, &m_pressEvent);
+    m_replayingPress = false;
+  }
+  return true;
+}
+
+std::string SpinBox::shownText() const { return fstring(m_format.c_str(), m_value*m_scale); }
+
+void SpinBox::setDisplay(real scale, const char* format)
+{
+  m_scale = scale;
+  m_format = format;
+  spinboxText->setText(shownText().c_str());
 }
 
 void SpinBox::updateValue(real val)
@@ -1207,7 +1281,7 @@ bool SpinBox::setValue(real val)
   decBtn->setEnabled(v > m_min);
   incBtn->setEnabled(v < m_max);
   m_value = v;
-  spinboxText->setText(fstring(m_format.c_str(), m_value).c_str());
+  spinboxText->setText(shownText().c_str());
   return v == val;
 }
 
@@ -1220,7 +1294,7 @@ bool SpinBox::updateValueFromText(const char* s)
   std::string text(s);
   std::replace(text.begin(), text.end(), ',', '.');
   char* next = NULL;
-  real v = strtod(text.c_str(), &next);
+  real v = strtod(text.c_str(), &next)/m_scale;
   if(!next || next == text.c_str() || !std::isfinite(v))
     return false;
   while(*next == ' ' || *next == '\t' || *next == '%')
@@ -1229,7 +1303,7 @@ bool SpinBox::updateValueFromText(const char* s)
     return false;
   updateValue(v);  // clamps, snaps -0 to 0, updates buttons and text, calls onValueChanged
   // show the canonical text, e.g. "5." -> "5", "007" -> "7" (setValue does nothing if the value is unchanged)
-  std::string shown = fstring(m_format.c_str(), m_value);
+  std::string shown = shownText();
   if(shown != spinboxText->text())
     spinboxText->setText(shown.c_str());
   return true;
