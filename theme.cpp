@@ -276,13 +276,14 @@ text.dialogpopup-title { fill: var(--text); font-size: 17; font-weight: bold; ma
 .cbmenuitem.checked .checkmark { display: block; }
 /*.checked .checkbox .checkmark { display: block; }*/
 
-.slider-handle-outer { fill: grey; }
-.slider-handle-inner { fill: black; }
-/* the ruling region panel (MainWindow::buildRegionPanel): the spacing slider is the color picker's
-   rounded bar and caret, the caret's gap painted in the panel color; and the Background checkbox */
-.region-panel .slider-bg { fill: #4A4A4A; stroke: none; }
-.region-panel .slider-caret { fill: #FFFFFF; stroke: none; }
-.region-panel .slider-caret-gap { fill: var(--dark); stroke: none; }
+/* the standard slider (createSlider(), #slider): the color picker's rounded bar in miniature and a caret
+   with a gap cut around it in the surface color (popups, panels and dialogs are --dark).  Scoped to
+   .slider-plain so the gradient sliders (colorwidgets.cpp), which carry their own fills, are untouched;
+   a bar with another surface (the crop bar) overrides these three. */
+.slider-plain .slider-bg { fill: var(--button); stroke: none; }
+.slider-plain .slider-caret { fill: var(--text); stroke: none; }
+.slider-plain .slider-caret-gap { fill: var(--dark); stroke: none; }
+/* the ruling region panel (MainWindow::buildRegionPanel): the Background checkbox */
 .region-panel .region-check-tick { stroke: var(--dark); }
 
 /* color picker: R/G/B/H/S/V/A gradient sliders (colorwidgets.cpp) */
@@ -615,11 +616,12 @@ static const char* defaultWidgetSVG = R"#(
   </g>
 
   <g id="spinbox" class="inputbox spinbox" layout="box">
-    <rect class="min-width-rect" width="150" height="36" fill="none"/>
 
     <g class="spinbox_content" box-anchor="fill" layout="flex" flex-direction="row">
       <!-- the text field: its own box, so a press on the buttons below is never a press on it -->
       <g class="spinbox_field" box-anchor="fill" layout="box">
+        <!-- the field's own minimum width (createTextSpinBox's minwidth): the buttons come on top of it -->
+        <rect class="min-width-rect" width="96" height="36" fill="none"/>
         <rect class="inputbox-bg" box-anchor="fill" width="20" height="36"/>
         <g class="textbox spinbox_text" box-anchor="fill" layout="box" margin="0 2">
         </g>
@@ -642,15 +644,18 @@ static const char* defaultWidgetSVG = R"#(
     </g>
   </g>
 
-  <g id="slider" class="slider" box-anchor="hfill" layout="box">
-    <rect class="min-width-rect" width="150" height="28" fill="none"/>
-    <rect class="slider-bg background" box-anchor="hfill" width="200" height="28" margin="0 12"/>
+  <g id="slider" class="slider slider-plain" box-anchor="hfill" layout="box">
+    <rect class="min-width-rect" width="150" height="32" fill="none"/>
+    <g box-anchor="hfill" layout="box" margin="0 6">
+      <rect width="100" height="32" fill="none"/>
+      <rect class="slider-bg" box-anchor="hfill" width="100" height="12" rx="6" ry="6"/>
+    </g>
     <g class="slider-handle-container" box-anchor="left">
       <!-- invisible rect to set left edge of box so slider-handle can move freely -->
-      <rect width="28" height="28" fill="none"/>
-      <g class="slider-handle" transform="translate(10,0)">
-        <rect class="slider-handle-outer" x="-12" y="-2" width="24" height="32"/>
-        <rect class="slider-handle-inner" x="-9" y="0" width="18" height="28"/>
+      <rect width="12" height="32" fill="none"/>
+      <g class="slider-handle" transform="translate(6,0)">
+        <rect class="slider-caret-gap" x="-4.5" y="3" width="9" height="26" rx="4.5" ry="4.5"/>
+        <rect class="slider-caret" x="-2.5" y="6" width="5" height="20" rx="2.5" ry="2.5"/>
       </g>
     </g>
   </g>
