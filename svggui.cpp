@@ -950,9 +950,22 @@ bool isLongPressOrRightClick(SDL_Event* event)
 void SvgGui::setupRightClick(Widget* itemext, const std::function<void(SvgGui*, Widget*, Point)>& callback)
 {
   // should have std::move somewhere here I think
-  itemext->addHandler([itemext, callback](SvgGui* gui, SDL_Event* event){
+  // After a long press the finger is still down on the item; when it lifts, the item (a Button) would
+  //  see an ordinary release and fire onClicked - opening the document, toggling the tag filter, which
+  //  rebuilds the list and closes the very menu the long press just opened. So that one release is eaten.
+  //  (Handlers run newest first, so this one sees the release before the Button's own handler.)
+  auto longPressed = std::make_shared<bool>(false);
+  itemext->addHandler([itemext, callback, longPressed](SvgGui* gui, SDL_Event* event){
     if(isLongPressOrRightClick(event)) {
+      *longPressed = event->type == SvgGui::LONG_PRESS;
       callback(gui, itemext, Point(event->tfinger.x, event->tfinger.y));
+      return true;
+    }
+    if(event->type == SDL_FINGERDOWN)
+      *longPressed = false;
+    else if(event->type == SDL_FINGERUP && *longPressed) {
+      *longPressed = false;
+      itemext->node->removeClass("pressed");
       return true;
     }
     return false;
